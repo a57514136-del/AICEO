@@ -111,4 +111,8 @@ await writeFile(
     2
   ) + "\n"
 );
+await writeFile(
+  new URL("../data/trades.js", import.meta.url),
+  "window.__TRADES__ = " + JSON.stringify({ updatedAt: new Date().toISOString(), regions: CODES.map((c) => c.name), trades }, null, 2) + ";\n"
+);
 console.log(`저장 완료: ${trades.length}건 → data/trades.json`);

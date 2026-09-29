@@ -16,7 +16,12 @@
   let tab = "전체";
   let filter = {};
 
-  const loadJSON = (path) => fetch(path, { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+  const loadJSON = (path) => {
+    // 더블클릭(file://)으로 열어도 동작하도록 data/*.js 를 우선 사용
+    const pre = path.includes("listings") ? window.__LISTINGS__ : window.__TRADES__;
+    if (pre) return Promise.resolve(pre);
+    return fetch(path, { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+  };
 
   function matches(l) {
     if (tab !== "전체" && l.type !== tab) return false;
