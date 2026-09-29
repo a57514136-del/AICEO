@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>물건조회 | 나경공인중개사사무소</title>
+  <meta name="description" content="지역·유형·거래·금액으로 매물을 찾아보세요." />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body data-page="search" id="top">
+
+  <header class="page-hero">
+    <div data-nav></div>
+    <div class="page-hero__copy">
+      <p class="crumb"><a href="index.html">홈</a> <span aria-hidden="true">/</span> 물건조회</p>
+      <h1>물건조회</h1>
+      <p class="page-hero__lead">지역, 유형, 거래 방식, 예산을 고르면 맞는 매물을 바로 보여 드립니다.</p>
+    </div>
+    <svg class="page-hero__skyline" viewBox="0 0 280 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 88h276"/><path d="M14 88V52l30-24 30 24v36"/><path d="M36 88V68h16v20"/>
+      <path d="M90 88V20h44v68"/><path d="M100 32h8M116 32h8M100 46h8M116 46h8M100 60h8M116 60h8M100 74h8M116 74h8"/>
+      <path d="M144 88V44h34v44"/><path d="M152 56h6M164 56h6M152 70h6M164 70h6"/>
+      <path d="M212 88V60"/><ellipse cx="212" cy="44" rx="16" ry="24"/><path d="M252 88V68"/><ellipse cx="252" cy="56" rx="11" ry="16"/>
+    </svg>
+  </header>
+
+  <main class="page wrap search-layout">
+    <aside class="search-panel">
+      <form class="finder" id="finder">
+          <label>지역
+            <select name="region" id="f-region"><option value="">전체</option></select>
+          </label>
+          <label>유형
+            <select name="type" id="f-type">
+              <option value="">전체</option><option>아파트</option><option>주택</option><option>토지</option><option>상가</option>
+            </select>
+          </label>
+          <label>거래
+            <select name="deal" id="f-deal">
+              <option value="">전체</option><option>매매</option><option>전세</option><option>월세</option>
+            </select>
+          </label>
+          <label>최대 금액 (만원)
+            <input name="max" id="f-max" type="number" min="0" step="1000" placeholder="예: 50000" />
+          </label>
+        <button class="btn btn--dark" type="submit">조회하기</button>
+        <button class="btn btn--ghost" type="reset">조건 초기화</button>
+      </form>
+    </aside>
+    <section class="search-results">
+      <p class="finder__result" id="finder-result" aria-live="polite">매물을 불러오는 중…</p>
+      <ul class="rows" id="search-rows"></ul>
+    </section>
+  </main>
+
+  <div data-footer></div>
+  <script src="data/listings.js"></script>
+  <script src="assets/layout.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

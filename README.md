@@ -6,7 +6,13 @@
 
 | 경로 | 내용 |
 |---|---|
-| `index.html` | 메인 페이지 (히어로 · 소개 · 추천 매물 · 물건조회 · 실거래가 · 연락처) |
+| `index.html` | 홈 (소개 · 중개분야 · 추천 매물 3개 · 빠른 물건조회) |
+| `listings.html` | 매물 — 유형별 탭 |
+| `search.html` | 물건조회 — 지역·유형·거래·금액 검색 |
+| `trades.html` | 실거래가 — 지역·단지 검색 |
+| `services.html` | 중개분야 · 나경 소개 |
+| `contact.html` | 연락처 · 지도 · 상담 신청 |
+| `assets/layout.js` | 모든 페이지의 상단 메뉴·하단 정보 (**사무소 정보는 여기 `OFFICE`만 고치면 전 페이지 반영**) |
 | `assets/style.css`, `assets/app.js` | 디자인과 동작 (외부 라이브러리 없음) |
 | `data/listings.json` | 매물 목록 — **예시 데이터이므로 실제 매물로 교체** |
 | `data/trades.json` | 실거래가 데이터 (자동 생성) |

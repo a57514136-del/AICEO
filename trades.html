@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>실거래가 | 나경공인중개사사무소</title>
+  <meta name="description" content="국토교통부 아파트 매매 실거래가 — 매일 자동 갱신." />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body data-page="trades" id="top">
+
+  <header class="page-hero">
+    <div data-nav></div>
+    <div class="page-hero__copy">
+      <p class="crumb"><a href="index.html">홈</a> <span aria-hidden="true">/</span> 실거래가</p>
+      <h1>아파트 실거래가</h1>
+      <p class="page-hero__lead">국토교통부 실거래가 공개시스템 자료를 매일 아침 자동으로 가져옵니다.</p>
+    </div>
+    <svg class="page-hero__skyline" viewBox="0 0 280 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 88h276"/><path d="M14 88V52l30-24 30 24v36"/><path d="M36 88V68h16v20"/>
+      <path d="M90 88V20h44v68"/><path d="M100 32h8M116 32h8M100 46h8M116 46h8M100 60h8M116 60h8M100 74h8M116 74h8"/>
+      <path d="M144 88V44h34v44"/><path d="M152 56h6M164 56h6M152 70h6M164 70h6"/>
+      <path d="M212 88V60"/><ellipse cx="212" cy="44" rx="16" ry="24"/><path d="M252 88V68"/><ellipse cx="252" cy="56" rx="11" ry="16"/>
+    </svg>
+  </header>
+
+  <main class="page wrap">
+    <div class="trades__bar">
+      <label>지역
+        <select id="t-region"><option value="">전체</option></select>
+      </label>
+      <label>단지·동 검색
+        <input id="t-query" type="search" placeholder="예: 노형, 이편한" />
+      </label>
+      <p class="count-line">거래 <strong id="t-count">–</strong></p>
+    </div>
+    <p class="trades__meta" id="trades-meta">국토교통부 실거래가 공개시스템 기준</p>
+    <div class="table-wrap">
+      <table class="trades__table">
+        <thead>
+          <tr><th>계약일</th><th>지역</th><th>단지명</th><th>전용면적</th><th>층</th><th class="num">거래금액</th></tr>
+        </thead>
+        <tbody id="trades-body"></tbody>
+      </table>
+    </div>
+    <p class="note">※ 실거래가는 신고일 기준으로 공개되어 최근 거래는 늦게 반영될 수 있습니다. 해제(취소)된 거래는 제외했습니다.</p>
+  </main>
+
+  <div data-footer></div>
+  <script src="data/trades.js"></script>
+  <script src="assets/layout.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

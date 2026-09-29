@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>매물 | 나경공인중개사사무소</title>
+  <meta name="description" content="나경공인중개사사무소 추천 매물 — 아파트·주택·토지·상가." />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body data-page="listings" id="top">
+
+  <header class="page-hero">
+    <div data-nav></div>
+    <div class="page-hero__copy">
+      <p class="crumb"><a href="index.html">홈</a> <span aria-hidden="true">/</span> 매물</p>
+      <h1>매물</h1>
+      <p class="page-hero__lead">직접 다녀온 매물만 소개합니다. 궁금한 매물을 눌러 자세히 확인하세요.</p>
+    </div>
+    <svg class="page-hero__skyline" viewBox="0 0 280 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+      <path d="M2 88h276"/><path d="M14 88V52l30-24 30 24v36"/><path d="M36 88V68h16v20"/>
+      <path d="M90 88V20h44v68"/><path d="M100 32h8M116 32h8M100 46h8M116 46h8M100 60h8M116 60h8M100 74h8M116 74h8"/>
+      <path d="M144 88V44h34v44"/><path d="M152 56h6M164 56h6M152 70h6M164 70h6"/>
+      <path d="M212 88V60"/><ellipse cx="212" cy="44" rx="16" ry="24"/><path d="M252 88V68"/><ellipse cx="252" cy="56" rx="11" ry="16"/>
+    </svg>
+  </header>
+
+  <main class="page wrap">
+    <div class="listings__head">
+      <p class="count-line">등록 매물 <strong id="count">–</strong></p>
+      <div class="tabs" role="tablist" id="tabs">
+        <button class="is-active" data-type="전체">전체</button>
+        <button data-type="아파트">아파트</button>
+        <button data-type="주택">주택</button>
+        <button data-type="토지">토지</button>
+        <button data-type="상가">상가</button>
+      </div>
+    </div>
+    <ul class="rows" id="rows"></ul>
+    <p class="empty" id="empty" hidden>이 유형의 매물이 지금은 없습니다. 전화 주시면 새로 나오는 대로 알려 드릴게요.</p>
+    <p class="note">※ 현재 매물은 예시입니다. 실제 매물로 교체해 주세요.</p>
+  </main>
+
+  <div data-footer></div>
+  <script src="data/listings.js"></script>
+  <script src="assets/layout.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
