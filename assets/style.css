@@ -1,15 +1,16 @@
 :root {
   /* 명함 컬러: 로즈 핑크 + 크림 */
-  --bg: #fdf4f2;          /* 아주 옅은 블러시 */
+  --bg: #fff7f4;          /* 환한 복숭아빛 화이트 */
   --paper: #ffffff;
   --ink: #3a2427;         /* 따뜻한 짙은 로즈브라운 */
-  --ink-2: #7d5f62;
-  --line: #f1dcd9;
-  --pill: #fbe1df;
-  --accent: #d9616d;      /* 주홍빛 로즈 (포인트) */
-  --rose: #ee9ea3;        /* 명함 바탕 핑크 */
-  --rose-deep: #b8475a;
-  --cream: #fff7e1;       /* 명함 로고 크림 */
+  --ink-2: #8a5f5c;
+  --line: #ffe0d9;
+  --pill: #ffe3dc;
+  --accent: #f5505f;      /* 밝은 주홍 (포인트) */
+  --rose: #ff8a80;        /* 밝은 코랄 핑크 */
+  --rose-2: #ff7096;      /* 밝은 핑크 (그라데이션 끝) */
+  --rose-deep: #eb4a68;
+  --cream: #fffdf8;       /* 로고·글씨 (거의 흰색) */
   --radius: 14px;
   --max: 1200px;
   font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif;
@@ -42,7 +43,7 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); }
 /* ---------- HERO ---------- */
 .hero { background: var(--rose); position: relative; margin: 16px; height: min(92vh, 860px); min-height: 560px; border-radius: 22px; overflow: hidden; color: var(--cream); }
 .hero__bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(238,158,163,.55) 0%, rgba(238,158,163,.25) 45%, rgba(184,71,90,.65) 100%); }
+.hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,160,140,.50) 0%, rgba(255,150,130,.20) 45%, rgba(255,100,140,.60) 100%); }
 
 .nav { position: absolute; top: 16px; left: 16px; right: 16px; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px 10px 20px; border-radius: 14px; background: rgba(255,255,255,.14); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,.18); }
 .nav__brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; letter-spacing: -0.02em; }
@@ -172,8 +173,8 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); }
   .hero__logo { display: none; }
   .services { margin: 0 8px 80px; }
 }
-.hero__copy h1 { font-weight: 600; text-shadow: 0 2px 18px rgba(184,71,90,.35); }
-.hero__copy .link-arrow { text-shadow: 0 1px 8px rgba(184,71,90,.4); }
+.hero__copy h1 { font-weight: 600; text-shadow: 0 2px 18px rgba(235,74,104,.35); }
+.hero__copy .link-arrow { text-shadow: 0 1px 8px rgba(235,74,104,.4); }
 
 /* ================= 멀티 페이지 ================= */
 .nav__links a[aria-current="page"] { opacity: 1; font-weight: 700; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
@@ -185,7 +186,7 @@ h2 { font-size: clamp(28px, 3.6vw, 44px); }
 a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* 서브 페이지 상단 */
-.page-hero { position: relative; margin: 16px; min-height: 360px; padding: 120px clamp(24px, 4vw, 56px) 48px; border-radius: 22px; overflow: hidden; background: linear-gradient(135deg, var(--rose) 0%, #e98c93 100%); color: var(--cream); display: flex; align-items: flex-end; }
+.page-hero { position: relative; margin: 16px; min-height: 360px; padding: 120px clamp(24px, 4vw, 56px) 48px; border-radius: 22px; overflow: hidden; background: linear-gradient(120deg, #ffa27f 0%, var(--rose) 45%, var(--rose-2) 100%); color: var(--cream); display: flex; align-items: flex-end; }
 .page-hero__copy { position: relative; z-index: 1; max-width: 720px; }
 .page-hero h1 { font-size: clamp(34px, 5vw, 60px); font-weight: 600; margin: 8px 0 14px; text-wrap: balance; }
 .page-hero__lead { margin: 0; font-size: 16px; opacity: .92; }
@@ -260,3 +261,13 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   .service .link-arrow { grid-column: 2; justify-self: start; }
   .trades__bar .count-line { margin-left: 0; }
 }
+
+/* ===== 밝은 톤 보정 ===== */
+.hero { background: linear-gradient(120deg, #ffa27f, var(--rose-2)); }
+.services { background: linear-gradient(120deg, #ffa27f 0%, var(--rose) 50%, var(--rose-2) 100%); }
+.footer { background: linear-gradient(120deg, var(--rose-deep) 0%, #f2607a 100%); }
+.btn--dark { background: var(--accent); box-shadow: 0 6px 18px rgba(245,80,95,.28); }
+.btn--dark:hover { background: #ff6470; }
+.page-hero h1, .services .quote, .hero__copy h1 { text-shadow: 0 2px 14px rgba(235,74,104,.25); }
+.find__panel, .search-panel, .contact-card, .contact-form, .table-wrap, .quick { box-shadow: 0 10px 30px rgba(255,138,128,.12); }
+.hero__bg { background: transparent; }
