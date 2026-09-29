@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>나경공인중개사사무소 | REAL ESTATE</title>
+  <meta name="description" content="나경공인중개사사무소 — 아파트·주택·토지·상가 매물 조회와 국토교통부 실거래가 자동 조회." />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <!-- HERO -->
+  <header class="hero" id="top">
+    <img class="hero__bg" src="https://picsum.photos/id/1031/1800/1200" alt="" />
+    <div class="hero__shade"></div>
+
+    <nav class="nav">
+      <a class="nav__brand" href="#top">나경공인중개사</a>
+      <div class="nav__links">
+        <a href="#listings">매물</a>
+        <a href="#search">물건조회</a>
+        <a href="#trades">실거래가</a>
+        <a href="#contact">오시는 길</a>
+      </div>
+      <a class="btn btn--light" href="#contact">상담 예약</a>
+    </nav>
+
+    <div class="hero__copy">
+      <h1>머무를 공간을,<br />오래 가치 있게.</h1>
+      <a class="link-arrow link-arrow--light" href="#listings">추천 매물 보기 <span>→</span></a>
+    </div>
+
+    <div class="hero__card">
+      <img src="https://picsum.photos/id/1068/200/200" alt="" />
+      <div>
+        <strong>방문 상담 예약</strong>
+        <p>매매·전세·월세 무엇이든 편하게 물어보세요.</p>
+        <a class="btn btn--light btn--sm" href="#contact">예약하기</a>
+      </div>
+    </div>
+
+    <div class="hero__wordmark" aria-hidden="true">NAKYUNG</div>
+  </header>
+
+  <main>
+    <!-- ABOUT -->
+    <section class="about wrap">
+      <span class="pill">About 나경</span>
+      <p class="about__lead">
+        동네를 가장 잘 아는 중개사가 매물의 장점과 단점을 모두 말씀드립니다.
+        정확한 정보, 투명한 거래, 끝까지 책임지는 상담.
+      </p>
+      <a class="link-arrow" href="#contact">나경 소개 <span>→</span></a>
+    </section>
+
+    <!-- LISTINGS -->
+    <section class="listings wrap" id="listings">
+      <div class="listings__head">
+        <div>
+          <span class="pill">추천 매물</span>
+          <h2>지금 소개하는<br />좋은 공간</h2>
+        </div>
+        <div class="tabs" role="tablist" id="tabs">
+          <button class="is-active" data-type="전체">전체</button>
+          <button data-type="아파트">아파트</button>
+          <button data-type="주택">주택</button>
+          <button data-type="토지">토지</button>
+          <button data-type="상가">상가</button>
+        </div>
+      </div>
+      <ul class="rows" id="rows"></ul>
+      <p class="empty" id="empty" hidden>조건에 맞는 매물이 없습니다. 조건을 바꿔 보세요.</p>
+    </section>
+
+    <!-- SEARCH -->
+    <section class="find" id="search">
+      <div class="find__panel">
+        <h2>내게 맞는 공간 찾기</h2>
+        <img class="find__circle" src="https://picsum.photos/id/1080/400/400" alt="" />
+        <form class="finder" id="finder">
+          <label>지역
+            <select name="region" id="f-region"><option value="">전체</option></select>
+          </label>
+          <label>유형
+            <select name="type">
+              <option value="">전체</option><option>아파트</option><option>주택</option><option>토지</option><option>상가</option>
+            </select>
+          </label>
+          <label>거래
+            <select name="deal">
+              <option value="">전체</option><option>매매</option><option>전세</option><option>월세</option>
+            </select>
+          </label>
+          <label>최대 금액 (만원)
+            <input name="max" type="number" min="0" step="1000" placeholder="예: 50000" />
+          </label>
+          <button class="btn btn--dark" type="submit">물건 조회</button>
+          <p class="finder__result" id="finder-result" aria-live="polite"></p>
+        </form>
+      </div>
+      <div class="find__photo">
+        <img src="https://picsum.photos/id/1029/1200/1400" alt="" />
+      </div>
+    </section>
+
+    <!-- TRADES -->
+    <section class="trades wrap" id="trades">
+      <div class="listings__head">
+        <div>
+          <span class="pill">실거래가 자동 조회</span>
+          <h2>최근 아파트<br />실거래 내역</h2>
+        </div>
+        <p class="trades__meta" id="trades-meta">국토교통부 실거래가 공개시스템 기준</p>
+      </div>
+      <div class="table-wrap">
+        <table class="trades__table">
+          <thead>
+            <tr><th>계약일</th><th>지역</th><th>단지명</th><th>전용면적</th><th>층</th><th class="num">거래금액</th></tr>
+          </thead>
+          <tbody id="trades-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="stats wrap">
+      <span class="pill">나경의 기록</span>
+      <div class="stats__grid">
+        <div><strong>1,200<sup>+</sup></strong><span>누적 중개 건수</span></div>
+        <div><strong>15<sup>년</sup></strong><span>지역 경력</span></div>
+        <div><strong>24<sup>h</sup></strong><span>매물 정보 갱신</span></div>
+        <div><strong>92<sup>%</sup></strong><span>재방문 고객</span></div>
+      </div>
+      <p class="note">※ 수치는 예시입니다. 실제 사무소 정보로 교체해 주세요.</p>
+    </section>
+  </main>
+
+  <!-- CONTACT / FOOTER -->
+  <footer class="footer" id="contact">
+    <div class="wrap footer__grid">
+      <div>
+        <div class="footer__brand">나경공인중개사사무소<br /><small>REAL ESTATE</small></div>
+        <p class="muted">방문 전 전화 주시면 원하시는 매물을 미리 준비해 두겠습니다.</p>
+      </div>
+      <dl class="footer__info">
+        <div><dt>대표</dt><dd>[대표자명]</dd></div>
+        <div><dt>전화</dt><dd><a href="tel:000-0000-0000">[000-0000-0000]</a></dd></div>
+        <div><dt>주소</dt><dd>[사무소 주소]</dd></div>
+        <div><dt>등록번호</dt><dd>[중개사무소 등록번호]</dd></div>
+        <div><dt>영업시간</dt><dd>평일 09:00–19:00 · 토 10:00–16:00</dd></div>
+      </dl>
+    </div>
+    <div class="wrap footer__bottom">
+      <span>© <span id="year"></span> 나경공인중개사사무소</span>
+      <a href="#top">맨 위로 ↑</a>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
