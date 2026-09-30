@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>매물관리 | 나경공인중개사사무소</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="admin" id="top">
+  <header class="admin-head">
+    <a class="admin-brand" href="index.html"><span data-logo></span><span>매물관리</span></a>
+    <a class="btn btn--light btn--sm" href="listings.html" target="_blank" rel="noopener">사이트에서 보기 ↗</a>
+  </header>
+
+  <main class="admin-main">
+    <!-- 저장 방식 -->
+    <section class="panel" id="mode-panel">
+      <h2>저장 방식</h2>
+      <div class="mode-pick" role="radiogroup" aria-label="저장 방식">
+        <label class="mode-card">
+          <input type="radio" name="mode" value="local" id="mode-local" />
+          <strong>연습 모드</strong>
+          <span>이 컴퓨터(브라우저)에만 저장됩니다. 손님에게는 보이지 않아요. 입력·삭제를 연습해 볼 때 쓰세요.</span>
+        </label>
+        <label class="mode-card">
+          <input type="radio" name="mode" value="github" id="mode-github" />
+          <strong>홈페이지에 바로 반영</strong>
+          <span>GitHub 저장소에 저장되어 1~2분 뒤 홈페이지에 나타납니다. 처음 한 번 연결 설정이 필요해요.</span>
+        </label>
+      </div>
+
+      <form class="gh-form" id="gh-form" hidden>
+        <div class="gh-grid">
+          <label>GitHub 계정 <input name="owner" id="gh-owner" required autocomplete="off" /></label>
+          <label>저장소 이름 <input name="repo" id="gh-repo" required autocomplete="off" /></label>
+          <label>브랜치 <input name="branch" id="gh-branch" required autocomplete="off" /></label>
+          <label>접근 토큰 <input name="token" id="gh-token" type="password" required autocomplete="off" placeholder="github_pat_로 시작" /></label>
+        </div>
+        <div class="gh-actions">
+          <button class="btn btn--dark" type="submit">연결하고 매물 불러오기</button>
+          <button class="btn btn--ghost" type="button" id="gh-forget">이 컴퓨터에서 토큰 지우기</button>
+        </div>
+        <details class="help">
+          <summary>접근 토큰 만드는 법 (처음 한 번)</summary>
+          <ol>
+            <li>GitHub에 로그인 → 오른쪽 위 프로필 → <b>Settings</b> → 맨 아래 <b>Developer settings</b></li>
+            <li><b>Personal access tokens → Fine-grained tokens → Generate new token</b></li>
+            <li>Token name: <code>나경 매물관리</code>, Expiration: 1년(365 days)</li>
+            <li>Repository access: <b>Only select repositories</b> → <code>AICEO</code> 선택</li>
+            <li>Permissions → Repository permissions → <b>Contents: Read and write</b></li>
+            <li><b>Generate token</b>을 눌러 나온 <code>github_pat_…</code> 값을 복사해 위 칸에 붙여 넣기</li>
+          </ol>
+          <p>토큰은 이 컴퓨터의 브라우저에만 저장되고 홈페이지나 저장소에는 올라가지 않습니다. 다른 사람과 공유하지 마세요.</p>
+        </details>
+      </form>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- 매물 목록 -->
+    <section class="panel">
+      <div class="list-head">
+        <h2>등록 매물 <span class="muted" id="a-count"></span></h2>
+        <div class="list-tools">
+          <input type="search" id="a-q" placeholder="제목, 동네, 매물번호 검색" aria-label="매물 검색" />
+          <select id="a-status" aria-label="상태 필터">
+            <option value="">모든 상태</option><option>광고중</option><option>거래완료</option><option>숨김</option>
+          </select>
+          <button class="btn btn--dark" type="button" id="btn-new">+ 새 매물 등록</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="a-table">
+          <thead><tr><th>사진</th><th>매물</th><th>가격</th><th>상태</th><th>등록일</th><th class="num">관리</th></tr></thead>
+          <tbody id="a-rows"><tr><td colspan="6" class="muted">불러오는 중…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="local-tools" id="local-tools" hidden>
+        <button class="btn btn--ghost btn--sm" type="button" id="btn-export">연습 데이터 파일로 내보내기</button>
+        <button class="btn btn--ghost btn--sm" type="button" id="btn-reset">연습 데이터 처음으로 되돌리기</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- 매물 입력 창 -->
+  <dialog class="editor" id="editor" aria-labelledby="ed-title">
+    <form id="ed-form" method="dialog" novalidate>
+      <header class="editor__head">
+        <h2 id="ed-title">새 매물 등록</h2>
+        <button type="button" class="x" id="ed-close" aria-label="닫기">×</button>
+      </header>
+      <div class="editor__body">
+        <fieldset>
+          <legend>기본 정보</legend>
+          <div class="ed-grid">
+            <label>매물종류 *<select name="type" id="e-type" required></select></label>
+            <label>거래형태 *<select name="deal" id="e-deal" required></select></label>
+            <label class="span2">제목 (단지명) *<input name="title" id="e-title" required maxlength="60" placeholder="예: 노형에코하임, 외도부영1차" /></label>
+            <label>시 *<select name="city" id="e-city" required></select></label>
+            <label>읍·면·동 *<input name="dong" id="e-dong" required placeholder="예: 노형동, 애월읍 하귀1리" /></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>가격 · 면적 <small>(가격은 만원 단위)</small></legend>
+          <div class="ed-grid">
+            <label><span id="lbl-price">매매가</span> *<input name="price" id="e-price" type="number" min="0" step="1" required inputmode="numeric" placeholder="예: 28500 (=2억 8,500만원)" /></label>
+            <label id="wrap-rent" hidden><span id="lbl-rent">월세</span> *<input name="rent" id="e-rent" type="number" min="0" step="1" inputmode="numeric" /></label>
+            <label>전용면적 (㎡) *<input name="area" id="e-area" type="number" min="0" step="0.01" required inputmode="decimal" /></label>
+            <label>공급면적 (㎡)<input name="supplyArea" id="e-supplyArea" type="number" min="0" step="0.01" inputmode="decimal" /></label>
+          </div>
+          <p class="hint" id="price-preview"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>상세 정보 <small>(표시·광고 시 필요한 항목, 해당되는 것만)</small></legend>
+          <div class="ed-grid ed-grid--4">
+            <label>해당층<input name="floor" id="e-floor" placeholder="예: 12" /></label>
+            <label>총층<input name="totalFloor" id="e-totalFloor" placeholder="예: 20" /></label>
+            <label>방 수<input name="rooms" id="e-rooms" type="number" min="0" /></label>
+            <label>욕실 수<input name="baths" id="e-baths" type="number" min="0" /></label>
+            <label>방향<select name="direction" id="e-direction">
+              <option value="">선택 안 함</option><option>남향</option><option>남동향</option><option>남서향</option><option>동향</option><option>서향</option><option>북향</option><option>북동향</option><option>북서향</option>
+            </select></label>
+            <label>입주가능일<input name="moveIn" id="e-moveIn" placeholder="예: 즉시입주, 11월 협의" /></label>
+            <label>주차<input name="parking" id="e-parking" placeholder="예: 세대당 1.2대" /></label>
+            <label>사용승인일<input name="approvalDate" id="e-approvalDate" placeholder="예: 2016-05" /></label>
+            <label class="span2">관리비<input name="maintenance" id="e-maintenance" placeholder="예: 월 15만원 (수도·인터넷 포함)" /></label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>광고 문구</legend>
+          <label>해시태그 <small>(띄어쓰기로 구분)</small><input name="tags" id="e-tags" placeholder="#급매 #신축첫입주 #풀옵션 #한라산뷰" /></label>
+          <label>상세 설명<textarea name="desc" id="e-desc" rows="5" placeholder="매물의 장점, 주변 환경, 입주 조건 등을 적어 주세요."></textarea></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>사진 <small>(첫 번째 사진이 대표 사진)</small></legend>
+          <div class="photo-list" id="photo-list"></div>
+          <label class="photo-add">
+            <input type="file" id="e-photos" accept="image/jpeg,image/png,image/webp" multiple />
+            <span>+ 사진 추가</span>
+          </label>
+          <p class="hint">사진은 자동으로 줄여서 저장합니다. 아이폰 HEIC 사진은 JPG로 바꿔서 올려 주세요.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>노출</legend>
+          <div class="ed-grid">
+            <label>상태<select name="status" id="e-status"></select></label>
+            <label class="check"><input type="checkbox" name="featured" id="e-featured" /> 홈 화면 추천 매물로 보이기</label>
+          </div>
+        </fieldset>
+        <p class="status" id="ed-error" role="alert"></p>
+      </div>
+      <footer class="editor__foot">
+        <button type="button" class="btn btn--ghost" id="ed-cancel">취소</button>
+        <button type="submit" class="btn btn--dark" id="ed-save">저장</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <script src="data/listings.js"></script>
+  <script src="assets/layout.js"></script>
+  <script src="assets/listings-core.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>

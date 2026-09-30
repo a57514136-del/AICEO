@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>물건조회 | 나경공인중개사사무소</title>
-  <meta name="description" content="지역·유형·거래·금액으로 매물을 찾아보세요." />
+  <meta name="description" content="지역·매물종류·거래·면적·가격·해시태그로 매물을 찾아보세요." />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
   <link rel="stylesheet" href="assets/style.css" />
 </head>
@@ -15,7 +15,7 @@
     <div class="page-hero__copy">
       <p class="crumb"><a href="index.html">홈</a> <span aria-hidden="true">/</span> 물건조회</p>
       <h1>물건조회</h1>
-      <p class="page-hero__lead">지역, 유형, 거래 방식, 예산을 고르면 맞는 매물을 바로 보여 드립니다.</p>
+      <p class="page-hero__lead">지역, 종류, 면적, 가격, 해시태그까지 원하는 조건으로 찾아 드립니다.</p>
     </div>
     <svg class="page-hero__skyline" viewBox="0 0 280 90" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
       <path d="M2 88h276"/><path d="M14 88V52l30-24 30 24v36"/><path d="M36 88V68h16v20"/>
@@ -25,38 +25,66 @@
     </svg>
   </header>
 
-  <main class="page wrap search-layout">
-    <aside class="search-panel">
-      <form class="finder" id="finder">
-          <label>지역
-            <select name="region" id="f-region"><option value="">전체</option></select>
-          </label>
-          <label>유형
-            <select name="type" id="f-type">
-              <option value="">전체</option><option>아파트</option><option>주택</option><option>토지</option><option>상가</option>
-            </select>
-          </label>
-          <label>거래
-            <select name="deal" id="f-deal">
-              <option value="">전체</option><option>매매</option><option>전세</option><option>월세</option>
-            </select>
-          </label>
-          <label>최대 금액 (만원)
-            <input name="max" id="f-max" type="number" min="0" step="1000" placeholder="예: 50000" />
-          </label>
-        <button class="btn btn--dark" type="submit">조회하기</button>
-        <button class="btn btn--ghost" type="reset">조건 초기화</button>
-      </form>
-    </aside>
-    <section class="search-results">
-      <p class="finder__result" id="finder-result" aria-live="polite">매물을 불러오는 중…</p>
-      <ul class="rows" id="search-rows"></ul>
-    </section>
+  <main class="page wrap">
+    <form class="search-box" id="search-form">
+        <label class="f-city">지역
+          <select name="city" id="s-city"><option value="">제주 전체</option><option>제주시</option><option>서귀포시</option></select>
+        </label>
+        <label class="f-dong">읍·면·동
+          <input name="dong" id="s-dong" placeholder="예: 노형동, 애월읍" />
+        </label>
+        <label class="f-type">매물종류
+          <select name="type" id="s-type"><option value="">전체</option></select>
+        </label>
+        <label class="f-deal">거래
+          <select name="deal" id="s-deal"><option value="">전체</option></select>
+        </label>
+        <fieldset class="range">
+          <legend>면적 (㎡)</legend>
+          <input name="minArea" id="s-minArea" type="number" min="0" inputmode="decimal" placeholder="최소" aria-label="최소 면적" />
+          <span aria-hidden="true">~</span>
+          <input name="maxArea" id="s-maxArea" type="number" min="0" inputmode="decimal" placeholder="최대" aria-label="최대 면적" />
+        </fieldset>
+        <fieldset class="range">
+          <legend>가격 (만원, 보증금 기준)</legend>
+          <input name="minPrice" id="s-minPrice" type="number" min="0" step="500" placeholder="최소" aria-label="최소 가격" />
+          <span aria-hidden="true">~</span>
+          <input name="maxPrice" id="s-maxPrice" type="number" min="0" step="500" placeholder="최대" aria-label="최대 가격" />
+        </fieldset>
+        <label class="f-q">키워드 · 해시태그
+          <input name="q" id="s-q" type="search" placeholder="예: 급매, 한라산뷰, 외도초" />
+        </label>
+      <div class="search-box__actions">
+        <button class="btn btn--ghost" type="reset">초기화</button>
+        <button class="btn btn--dark" type="submit">검색</button>
+      </div>
+    </form>
+    <p class="chips">자주 찾는 조건:
+      <button type="button" data-chip="급매">#급매</button>
+      <button type="button" data-chip="신축첫입주">#신축첫입주</button>
+      <button type="button" data-chip="풀옵션">#풀옵션</button>
+      <button type="button" data-chip="즉시입주">#즉시입주</button>
+      <button type="button" data-chip="막힘없는뷰">#막힘없는뷰</button>
+      <button type="button" data-chip="전세보증보험">#전세보증보험</button>
+    </p>
+    <div class="browse-bar">
+      <p class="count-line">검색 결과 <strong id="count">–</strong>건</p>
+      <div class="browse-bar__right"><label class="sort">정렬
+          <select id="sort">
+            <option value="new">최신 등록순</option><option value="priceAsc">낮은 가격순</option>
+            <option value="priceDesc">높은 가격순</option><option value="areaDesc">넓은 면적순</option>
+          </select>
+        </label></div>
+    </div>
+      <ul class="cards" id="grid"></ul>
+      <p class="empty" id="empty" hidden>조건에 맞는 매물이 없습니다. 조건을 넓혀 보시거나 <a href="contact.html">전화로 문의</a>해 주세요. 새로 나오는 매물을 먼저 알려 드립니다.</p>
+      <nav class="pager" id="pager" aria-label="페이지"></nav>
   </main>
 
   <div data-footer></div>
   <script src="data/listings.js"></script>
   <script src="assets/layout.js"></script>
+  <script src="assets/listings-core.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

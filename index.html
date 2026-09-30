@@ -34,6 +34,37 @@
   </header>
 
   <main>
+  <section class="wrap quick-wrap">
+    <form class="search-box quick-search" action="search.html" method="get">
+        <label class="f-city">지역
+          <select name="city" id="s-city"><option value="">제주 전체</option><option>제주시</option><option>서귀포시</option></select>
+        </label>
+        <label class="f-dong">읍·면·동
+          <input name="dong" id="s-dong" placeholder="예: 노형동, 애월읍" />
+        </label>
+        <label class="f-type">매물종류
+          <select name="type" id="s-type"><option value="">전체</option></select>
+        </label>
+        <label class="f-deal">거래
+          <select name="deal" id="s-deal"><option value="">전체</option></select>
+        </label>
+        <label class="f-q">키워드
+          <input name="q" id="hq" type="search" placeholder="단지명, 동네, #해시태그" />
+        </label>
+      <div class="search-box__actions"><button class="btn btn--dark" type="submit">매물 검색</button></div>
+    </form>
+    <nav class="type-shortcuts" aria-label="매물종류 바로가기">
+      <a href="listings.html?type=아파트" data-type-count="아파트"><span>아파트</span><small>–</small></a>
+      <a href="listings.html?type=분양권" data-type-count="분양권"><span>분양권</span><small>–</small></a>
+      <a href="listings.html?type=오피스텔" data-type-count="오피스텔"><span>오피스텔</span><small>–</small></a>
+      <a href="listings.html?type=빌라·다세대" data-type-count="빌라·다세대"><span>빌라</span><small>–</small></a>
+      <a href="listings.html?type=단독·다가구" data-type-count="단독·다가구"><span>단독주택</span><small>–</small></a>
+      <a href="listings.html?type=상가·점포" data-type-count="상가·점포"><span>상가</span><small>–</small></a>
+      <a href="listings.html?type=토지·임야" data-type-count="토지·임야"><span>토지</span><small>–</small></a>
+      <a href="listings.html?type=사무실" data-type-count="사무실"><span>사무실</span><small>–</small></a>
+    </nav>
+  </section>
+
     <section class="about wrap">
       <span class="pill">About 나경</span>
       <p class="about__lead">
@@ -62,44 +93,20 @@
       </div>
     </section>
 
-    <section class="listings wrap">
+    <section class="wrap home-block">
       <div class="listings__head">
-        <div>
-          <span class="pill">추천 매물</span>
-          <h2>지금 소개하는<br />좋은 공간</h2>
-        </div>
-        <a class="link-arrow" href="listings.html">전체 매물 보기 <span>→</span></a>
+        <div><span class="pill">추천 매물</span><h2>나경이 추천하는 매물</h2></div>
+        <a class="link-arrow" href="listings.html">전체 매물 <span id="home-total">–</span>건 보기 <span>→</span></a>
       </div>
-      <ul class="rows" id="home-rows"></ul>
+      <ul class="cards" id="home-featured"></ul>
     </section>
 
-    <section class="find">
-      <div class="find__panel">
-        <h2>내게 맞는 공간 찾기</h2>
-        <img class="find__circle" src="https://picsum.photos/id/1080/400/400" alt="" />
-        <form class="finder" action="search.html" method="get">
-          <label>지역
-            <select name="region" id="f-region"><option value="">전체</option></select>
-          </label>
-          <label>유형
-            <select name="type" id="f-type">
-              <option value="">전체</option><option>아파트</option><option>주택</option><option>토지</option><option>상가</option>
-            </select>
-          </label>
-          <label>거래
-            <select name="deal" id="f-deal">
-              <option value="">전체</option><option>매매</option><option>전세</option><option>월세</option>
-            </select>
-          </label>
-          <label>최대 금액 (만원)
-            <input name="max" id="f-max" type="number" min="0" step="1000" placeholder="예: 50000" />
-          </label>
-          <button class="btn btn--dark" type="submit">물건 조회</button>
-        </form>
+    <section class="wrap home-block">
+      <div class="listings__head">
+        <div><span class="pill">신규 매물</span><h2>새로 등록된 매물</h2></div>
+        <a class="link-arrow" href="listings.html">더 보기 <span>→</span></a>
       </div>
-      <div class="find__photo">
-        <img src="https://picsum.photos/id/1029/1200/1400" alt="" />
-      </div>
+      <ul class="cards" id="home-new"></ul>
     </section>
 
     <section class="quicklinks wrap" aria-label="바로가기">
@@ -122,6 +129,7 @@
   <div data-footer></div>
   <script src="data/listings.js"></script>
   <script src="assets/layout.js"></script>
+  <script src="assets/listings-core.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>
