@@ -116,6 +116,23 @@ def parse_html(src):
 INLINE = {"b", "strong", "em", "i", "u", "small", "sup", "sub", "font"}
 
 
+def by_class(node, cls):
+    return [n for n in node.iter() if cls in str(n.attrs.get("class", "")).split()]
+
+
+def deal_text(node):
+    """거래 표시: class 가 type01(매매)·type02(전세)·type03(년월세)… 로 바뀜."""
+    for n in node.iter():
+        if any(re.fullmatch(r"type0\d", c) for c in str(n.attrs.get("class", "")).split()):
+            return text_of(n)
+    return ""
+
+
+def first_text(node, cls, sep=" "):
+    found = by_class(node, cls)
+    return text_of(found[0], sep) if found else ""
+
+
 def text_of(node, sep=" "):
     """태그 사이를 sep 로 이어 붙인 글자 (굵게·기울임 같은 꾸밈 태그는 붙여서)."""
     out = []
@@ -245,6 +262,23 @@ def parse_card_text(t):
     }
 
 
+def parse_card_structured(card):
+    """제주올 목록 카드 (2026년 9월 화면 기준 class 이름)."""
+    deal_w = deal_text(card)
+    type_w = first_text(card, "cate")
+    tags = [x.strip(".,") for x in re.findall(r"#([^\s#]+)", first_text(card, "propertyname"))]
+    add = first_text(card, "add")
+    cm = re.match(r"(제주시|서귀포시)\s*(.*)", add)
+    city, dong = (cm.group(1), cm.group(2).strip()) if cm else ("제주시", add)
+    area = to_num(first_text(card, "area"))
+    pm = re.search(r"([\d,]+)\s*(?:/\s*([\d,]+))?", first_text(card, "price"))
+    price, rent = (to_num(pm.group(1)), to_num(pm.group(2))) if pm else (0, 0)
+    deal = map_deal(deal_w, price, rent)
+    typ = map_type(type_w)
+    return {"jejuallType": type_w, "type": typ, "deal": deal, "tags": tags, "title": title_from_tags(tags, dong, typ),
+            "city": city, "dong": dong, "area": area, "price": int(price), "rent": int(rent) if deal in ("월세", "연세") else 0}
+
+
 def parse_list(src):
     """목록 페이지 → [매물]. 한 페이지에 신규리스트·중개업소리스트가 함께 있어도 번호로 중복 제거."""
     root = parse_html(src)
@@ -255,7 +289,10 @@ def parse_list(src):
             continue
         num = m.group(1)
         card = card_of(a, num)
-        info = parse_card_text(text_of(card, sep="\n"))
+        if by_class(card, "propertyname"):
+            info = parse_card_structured(card)
+        else:
+            info = parse_card_text(text_of(card, sep="\n"))
         if not info["area"] and not info["price"]:
             continue  # 매물 카드가 아닌 링크
         seen.add(num)
@@ -272,54 +309,57 @@ DETAIL_LABELS = {
 
 
 def parse_detail(src):
-    """상세 페이지 → 추가 정보 (값을 못 찾으면 빈칸)."""
+    """상세 페이지 → 추가 정보. '매물 정보' 표(info_t)의 제목칸/내용칸을 짝지어 읽음. 못 찾으면 빈칸."""
     root = parse_html(src)
-    t = text_of(root, sep="\n")
-    lines = [l.strip() for l in t.split("\n") if l.strip()]
+    table = next((n for n in root.iter() if n.tag == "table" and "info_t" in str(n.attrs.get("class", "")).split()), None)
     got = {}
-    for key, lab in DETAIL_LABELS.items():
-        rx = re.compile(rf"^(?:{lab})\s*[:：]?\s*(.*)$")
-        for i, line in enumerate(lines):
-            m = rx.match(line)
-            if not m:
-                continue
-            val = m.group(1).strip() or (lines[i + 1] if i + 1 < len(lines) else "")
-            if val and not rx.match(val):
-                got[key] = val
-                break
+    if table is not None:
+        cells = [n for n in table.iter() if n.tag == "td" and str(n.attrs.get("class", "")).split()[:1] in (["info_t_tit"], ["info_t_cont"])]
+        for a, b in zip(cells, cells[1:]):
+            if "info_t_tit" in a.attrs.get("class", "") and "info_t_cont" in b.attrs.get("class", ""):
+                got[re.sub(r"\s+", "", text_of(a))] = re.sub(r"\s+", " ", text_of(b)).strip()
     d = {}
-    if "supplyArea" in got:
-        d["supplyArea"] = to_num(re.sub(r"[^\d.,]", "", got["supplyArea"].split("㎡")[0]))
-    if "area" in got:
-        a = to_num(re.sub(r"[^\d.,]", "", got["area"].split("㎡")[0]))
-        if a:
-            d["area"] = a
-    if "floorRaw" in got:
-        f = got["floorRaw"]
-        m = re.search(r"(\S+?)\s*/\s*(\d+)\s*층", f)
+    area = lambda v: to_num(re.sub(r"[^\d.]", "", (v or "").split("㎡")[0]))
+    if got.get("계약면적") or got.get("공급면적"):
+        d["supplyArea"] = area(got.get("계약면적") or got.get("공급면적"))
+    if got.get("전용면적") and area(got["전용면적"]):
+        d["area"] = area(got["전용면적"])
+    fl = got.get("해당층총층수") or got.get("해당층/총층수") or got.get("층수")
+    if fl:
+        m = re.match(r"\s*([^/]+?)\s*층?\s*/\s*(\d+)", fl)
         if m:
-            fl = m.group(1)
-            d["floor"], d["totalFloor"] = (fl[:-1] if re.fullmatch(r"-?\d+층", fl) else fl), m.group(2)
-        else:
-            d["floor"] = f.replace("층", "")
-    if "roomsRaw" in got:
-        m = re.search(r"(\d+)\s*(?:개)?\s*/\s*(\d+)", got["roomsRaw"])
+            f = m.group(1).strip()
+            d["floor"] = {"고": "고층", "중": "중층", "저": "저층"}.get(f, f)
+            d["totalFloor"] = m.group(2)
+    rb = got.get("방수/욕실수") or got.get("방/욕실")
+    if rb:
+        m = re.search(r"(\d+)\s*/\s*(\d+)", rb)
         if m:
             d["rooms"], d["baths"] = m.group(1), m.group(2)
-    for k in ("direction", "moveIn", "parking", "approvalDate", "maintenance", "addr", "complex"):
-        if k in got:
-            d[k] = got[k][:80]
-    if "maintenance" in d and re.fullmatch(r"[\d,]+\s*원?", d["maintenance"]):
-        won = to_num(re.sub(r"[^\d]", "", d["maintenance"]))
-        d["maintenance"] = f"월 {won / 10000:g}만원" if won >= 10000 else f"월 {int(won):,}원"
-    tags = re.findall(r"#([^\s#]+)", t)
+    for key, label in (("direction", "방향"), ("moveIn", "입주가능일"), ("approvalDate", "사용승인일"), ("addr", "소재지")):
+        if got.get(label) and got[label] not in ("-", "0"):
+            d[key] = got[label][:80]
+    if got.get("총주차대수"):
+        n = re.match(r"\s*(\d+)", got["총주차대수"])
+        hh = re.match(r"\s*(\d+)", got.get("총세대수", ""))
+        if n:
+            d["parking"] = f"총 {n.group(1)}대" + (f" (세대당 {int(n.group(1)) / int(hh.group(1)):.1f}대)" if hh and int(hh.group(1)) else "")
+    if got.get("월관리비"):
+        won = to_num(re.sub(r"[^\d]", "", got["월관리비"]))
+        if won:
+            d["maintenance"] = f"월 {won / 10000:g}만원" if won >= 10000 else f"월 {int(won):,}원"
+    name = got.get("매물명", "")
+    tags = re.findall(r"#([^\s#]+)", name)
     if tags:
         d["tags"] = list(dict.fromkeys(x.strip(".,") for x in tags))
-    m = re.search(r"상세\s*설명\s*\n(.+?)(?:\n(?:중개사\s*정보|중개업소|담당자|사진|매물\s*위치|관련\s*매물)|$)", t, re.S)
-    if m:
-        d["desc"] = m.group(1).strip()[:2000]
+    desc_node = next(iter(by_class(root, "detail_text_cont")), None)
+    if desc_node is not None:
+        desc = text_of(desc_node, sep="\n")
+        desc = re.sub(r"^[\s​\-·]+", "", desc, flags=re.M)
+        desc = re.sub(r"\n{2,}", "\n", desc).strip().replace("\u200b", "")
+        if desc:
+            d["desc"] = desc[:2000]
     return d
-
 
 # ---------------------------------------------------------------- 제주올 '내 매물' 관리 화면 (로그인 후 저장한 파일)
 TITLE_SKIP = re.compile(r"^(급매|초급매|특급매|신축|신축급|신축첫입주|즉시입주|풀옵션|올리모델링|리모델링|남향|남동향|남서향|동향|서향|"
@@ -357,7 +397,7 @@ def parse_admin(src):
             continue
         num = tr.attrs["id"].split("_")[-1]
         cls = lambda c: [n for n in tr.iter() if c in str(n.attrs.get("class", "")).split()]
-        deal_w = text_of(cls("type01")[0]) if cls("type01") else ""
+        deal_w = deal_text(tr)
         type_w = text_of(cls("cate")[0]) if cls("cate") else ""
         tag_src = next((n.attrs.get("title", "") for n in cls("proname") if "#" in n.attrs.get("title", "")), "")
         tags = [x.strip(".,") for x in re.findall(r"#([^\s#]+)", tag_src)]
@@ -444,18 +484,27 @@ def cmd_fetch():
             if l.get("jejuallNum"):
                 prev[l["jejuallNum"]] = l
     items, seen = [], set()
-    for page in range(1, MAX_PAGES + 1):
+    last_page, empty_run, page = 1, 0, 1
+    while page <= min(last_page, MAX_PAGES):
         url = LIST_URL if page == 1 else f"{BASE}/index.php/CProperty/myHome/params/num/{OFFICE_NUM}?page_data_list={page}"
-        found = parse_list(polite_get(url))
+        src = polite_get(url)
+        if page == 1:
+            nums = [int(n) for n in re.findall(r"page_data_list=(\d+)", src)]
+            last_page = max(nums) if nums else 1
+            print(f"  중개업소 리스트 {last_page}쪽까지 읽습니다.")
+        found = parse_list(src)
         new = [x for x in found if x["num"] not in seen]
         print(f"  {page}쪽: 매물 {len(found)}건 (새로 {len(new)}건)")
-        if not new:
-            break
         for x in new:
             seen.add(x["num"])
             items.append(x)
+        empty_run = 0 if new else empty_run + 1
+        if empty_run >= 3:
+            break
+        page += 1
     # 상세 정보: 새 매물이거나 목록 정보가 바뀐 매물만 (1분 간격이라 꼭 필요한 것만)
-    need = [x for x in items if x["num"] not in prev or signature(x) != prev[x["num"]].get("jejuallSig") or not prev[x["num"]].get("addr")]
+    need = [x for x in items if x["num"] not in prev or signature(x) != prev[x["num"]].get("jejuallSig")
+            or not prev[x["num"]].get("detailAt")]
     limit = int(os.environ.get("JEJUALL_MAX_DETAILS", "200"))
     print(f"상세 페이지 {min(len(need), limit)}건 읽기 (전체 {len(items)}건 중 새로 생기거나 바뀐 것)")
     for x in need[:limit]:
@@ -512,6 +561,8 @@ def merge(data, fetched, now, hide_missing=True):
                 stats["updated"] += 1
         l["jejuallNum"] = num
         l["jejuallSig"] = signature(x)
+        if d and ("desc" in d or "floor" in d or "direction" in d):
+            l["detailAt"] = now
         l["source"] = f"제주올 매물번호 {num}"
     for num, l in by_num.items():
         if hide_missing and num not in live and l.get("status") == "광고중":
