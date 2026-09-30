@@ -5,6 +5,8 @@
   python3 scripts/sync_jejuall.py fetch   # 제주올에서 읽어 .sync/jejuall.json 에 저장 (오래 걸림)
   python3 scripts/sync_jejuall.py merge   # .sync/jejuall.json 을 data/listings.json 에 합침 (빠름)
   python3 scripts/sync_jejuall.py test FILE.html [detail.html]   # 저장한 페이지로 읽기 시험
+  python3 scripts/sync_jejuall.py import-admin 내매물1.html [내매물2.html …]
+      # 제주올 로그인 후 "내 매물" 관리 화면을 저장한 파일로 한 번에 가져오기 (메모 칸은 가져오지 않음)
 
 두 단계로 나눈 이유: 제주올은 1분에 1번만 읽어 달라고 요청하므로(robots.txt Crawl-delay: 60)
 읽기가 오래 걸립니다. 그동안 매물관리에서 저장한 내용이 덮어써지지 않도록,
@@ -138,7 +140,7 @@ def text_of(node, sep=" "):
 
 
 # ---------------------------------------------------------------- 값 해석
-NUM_RE = re.compile(r"detail\?num=(\d+)")
+NUM_RE = re.compile(r"detail\d*\?num=(\d+)")
 
 TYPE_RULES = [  # (제주올 표기에 포함된 글자, 홈페이지 매물종류) — 앞쪽이 우선
     ("분양", "분양권"), ("오피스텔", "오피스텔"), ("도시형", "오피스텔"), ("아파트", "아파트"),
@@ -319,6 +321,93 @@ def parse_detail(src):
     return d
 
 
+# ---------------------------------------------------------------- 제주올 '내 매물' 관리 화면 (로그인 후 저장한 파일)
+TITLE_SKIP = re.compile(r"^(급매|초급매|특급매|신축|신축급|신축첫입주|즉시입주|풀옵션|올리모델링|리모델링|남향|남동향|남서향|동향|서향|"
+                        r"막힘없는뷰|바다뷰|한라산뷰|오션뷰|탑층|고층|로얄층|로얄동|쓰리룸|투룸|원룸|도시가스|전세권1순위|전세보증보험|"
+                        r"반려동물가능|주차편리|주차장유|엘리베이터유|마피|가장큰평수|내부컨디션최상|컨디션최상|전입신고안됨|강력추천|대로변|NO수수료|"
+                        r"\d+[A-Z]?타입|과수원|.*(초|중|고|초등|여중|여고|중학교|고등학교|인근|할인|분양|분양가이하|수수료|많은1층|급매|뷰|마트|단독|빌라|주택|"
+                        r"층|층상가|억대|등기|지역|가능|여유|이하|접|시설|용지|신축|중심지|대로변))$")
+
+
+NAMED_TYPES = {"아파트", "오피스텔", "빌라·다세대", "분양권"}
+EXTRA_SKIP = re.compile(r"(방\d|확장|입주|노출|좋음|완비|허가|근생|재생|임대|매매|전세|월세|연세|가능|최상|급)")
+
+
+def title_from_tags(tags, dong, typ):
+    if typ not in NAMED_TYPES:
+        tags = []
+    tags = [t for t in tags if not EXTRA_SKIP.search(t)]
+    dong_core = re.sub(r"(동|리|읍|면)$", "", (dong or "").split()[-1] if dong else "")
+    for t in tags:
+        if TITLE_SKIP.match(t):
+            continue
+        if re.search(r"(동|리|읍|면)$", t) and (not dong_core or dong_core in t or len(t) <= 5):
+            continue
+        return t
+    short = {"빌라·다세대": "빌라", "단독·다가구": "단독주택", "상가·점포": "상가", "토지·임야": "토지", "공장·창고": "창고", "원룸·투룸": "원룸"}
+    return f"{dong} {short.get(typ, typ)}".strip()
+
+
+def parse_admin(src):
+    """'내 매물' 관리 화면 → [매물]. 상세주소는 가져오되, 관리 메모 칸(호수·계약 메모 등)은 가져오지 않음."""
+    root = parse_html(src)
+    out = []
+    for tr in root.iter():
+        if tr.tag != "tr" or not str(tr.attrs.get("id", "")).startswith("property_loc_"):
+            continue
+        num = tr.attrs["id"].split("_")[-1]
+        cls = lambda c: [n for n in tr.iter() if c in str(n.attrs.get("class", "")).split()]
+        deal_w = text_of(cls("type01")[0]) if cls("type01") else ""
+        type_w = text_of(cls("cate")[0]) if cls("cate") else ""
+        tag_src = next((n.attrs.get("title", "") for n in cls("proname") if "#" in n.attrs.get("title", "")), "")
+        tags = [x.strip(".,") for x in re.findall(r"#([^\s#]+)", tag_src)]
+        addr = next((n.attrs.get("title", "") for n in cls("locations")), "").strip()
+        area = to_num(text_of(cls("area")[0])) if cls("area") else 0
+        price_t = text_of(cls("price")[0]) if cls("price") else ""
+        m = re.search(r"([\d,]+)\s*(?:/\s*([\d,]+))?", price_t)
+        price, rent = (to_num(m.group(1)), to_num(m.group(2))) if m else (0, 0)
+        date_t = text_of(cls("date")[0]) if cls("date") else ""
+        reg = re.search(r"등록\s*(\d{4}-\d{2}-\d{2})", date_t)
+        end = re.search(r"종료\s*(\d{4}-\d{2}-\d{2})", date_t)
+        deal = map_deal(deal_w, price, rent)
+        addr = re.sub(r"^(제주특별자치도|제주도)\s*", "", addr)
+        addr = re.sub(r"^(제주시|서귀포시)\s*", "", addr).strip()
+        dm = re.match(r"^(.*?(?:동|리|읍|면|가))\s*(?:산\s*)?\d+(?:-\d+)?.*$", addr)
+        dong = (dm.group(1) if dm else addr).strip()
+        city = "서귀포시" if re.search(r"서귀포|대정|남원|성산|안덕|표선|중문|대포|강정|법환|호근|토평|동홍|서홍|신효|하효|보목|상예|하예|색달|회수|도순|월평|영남", addr) else "제주시"
+        typ = map_type(type_w)
+        out.append({
+            "num": num, "jejuallType": type_w, "type": typ, "deal": deal, "tags": tags,
+            "title": title_from_tags(tags, dong, typ), "city": city, "dong": dong, "area": area,
+            "price": int(price), "rent": int(rent) if deal in ("월세", "연세") else 0,
+            "detail": {"addr": addr} if re.search(r"\d", addr) else {},
+            "registeredAt": reg.group(1) if reg else "", "endsAt": end.group(1) if end else "",
+        })
+    return out
+
+
+def cmd_import_admin(files):
+    items, seen = [], set()
+    for f in files:
+        for x in parse_admin(Path(f).read_text("utf-8", errors="replace")):
+            if x["num"] not in seen:
+                seen.add(x["num"])
+                items.append(x)
+    if not items:
+        raise SystemExit("파일에서 매물을 찾지 못했습니다. 제주올 '내 매물' 화면을 저장한 파일인지 확인해 주세요.")
+    data = json.loads(LISTINGS.read_text("utf-8")) if LISTINGS.exists() else {"listings": []}
+    now = datetime.now(KST).isoformat(timespec="minutes")
+    s = merge(data, {"items": items}, now, hide_missing=False)
+    # 등록일은 제주올 등록일로
+    reg = {x["num"]: x["registeredAt"] for x in items if x["registeredAt"]}
+    for l in data["listings"]:
+        n = l.get("jejuallNum")
+        if n in reg and l.get("createdAt", "").startswith(now[:10]):
+            l["createdAt"] = reg[n] + l["createdAt"][10:]
+    write_listings(data)
+    print(f"파일 {len(files)}개에서 매물 {len(items)}건 · 새 매물 {s['added']}건 · 바뀐 매물 {s['updated']}건")
+
+
 # ---------------------------------------------------------------- 가져오기
 def get(url):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "ko-KR,ko;q=0.9"})
@@ -379,7 +468,7 @@ def cmd_fetch():
     print(f"제주올 매물 {len(items)}건을 읽었습니다.")
 
 
-def merge(data, fetched, now):
+def merge(data, fetched, now, hide_missing=True):
     """data(listings.json 내용)에 fetched(제주올에서 읽은 것)를 합침. 바뀐 건수를 돌려줌."""
     listings = data.setdefault("listings", [])
     by_num = {l.get("jejuallNum") or (l["id"][2:] if str(l.get("id", "")).startswith("NK") and l["id"][2:].isdigit() else None): l
@@ -387,7 +476,7 @@ def merge(data, fetched, now):
     by_num.pop(None, None)
     old_count = sum(1 for l in by_num.values() if l.get("status") != "숨김")
     items = fetched["items"]
-    if not items or (old_count >= 10 and len(items) < old_count * 0.5):
+    if not items or (hide_missing and old_count >= 10 and len(items) < old_count * 0.5):
         raise SystemExit(f"제주올에서 읽은 매물이 {len(items)}건뿐입니다(기존 {old_count}건). 사이트 구조가 바뀌었을 수 있어 아무것도 바꾸지 않았습니다.")
     stats = {"added": 0, "updated": 0, "hidden": 0}
     live = set()
@@ -425,7 +514,7 @@ def merge(data, fetched, now):
         l["jejuallSig"] = signature(x)
         l["source"] = f"제주올 매물번호 {num}"
     for num, l in by_num.items():
-        if num not in live and l.get("status") == "광고중":
+        if hide_missing and num not in live and l.get("status") == "광고중":
             l["status"] = "숨김"
             l["hiddenBy"] = "sync"
             l["syncedAt"] = now
@@ -467,6 +556,8 @@ if __name__ == "__main__":
         cmd_fetch()
     elif cmd == "merge":
         cmd_merge()
+    elif cmd == "import-admin" and len(sys.argv) > 2:
+        cmd_import_admin(sys.argv[2:])
     elif cmd == "test" and len(sys.argv) > 2:
         cmd_test(*sys.argv[2:4])
     else:
