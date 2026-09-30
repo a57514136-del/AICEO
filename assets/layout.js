@@ -5,7 +5,6 @@
     name: "나경 공인중개사사무소",
     ceo: "강나경 (공인중개사)",
     phone: "010-3381-0856",
-    phone2: "010-6838-5954",
     email: "nk2022@naver.com",
     address: "제주시 국기로 14, 대림이편한세상아파트 상가동 102호",
     regNo: "50110-2021-00176",
@@ -63,7 +62,7 @@
         </div>
         <dl class="footer__info">
           <div><dt>대표</dt><dd>${OFFICE.ceo}</dd></div>
-          <div><dt>전화</dt><dd><a href="tel:${OFFICE.phone}">${OFFICE.phone}</a> · <a href="tel:${OFFICE.phone2}">${OFFICE.phone2}</a></dd></div>
+          <div><dt>전화</dt><dd><a href="tel:${OFFICE.phone}">${OFFICE.phone}</a></dd></div>
           <div><dt>이메일</dt><dd><a href="mailto:${OFFICE.email}">${OFFICE.email}</a></dd></div>
           <div><dt>주소</dt><dd>${OFFICE.address}</dd></div>
           <div><dt>등록번호</dt><dd>${OFFICE.regNo}</dd></div>

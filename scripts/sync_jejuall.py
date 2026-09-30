@@ -357,6 +357,8 @@ def parse_detail(src):
         desc = text_of(desc_node, sep="\n")
         desc = re.sub(r"^[\s​\-·]+", "", desc, flags=re.M)
         desc = re.sub(r"\n{2,}", "\n", desc).strip().replace("\u200b", "")
+        # 홈페이지에는 대표 번호(010-3381-0856)만 보이게: 설명 속 다른 사무소 번호는 대표 번호로 바꿈
+        desc = re.sub(r"0?1[0O]\s*[-.)]?\s*6838\s*[-.]?\s*5954", "010-3381-0856", desc)
         if desc:
             d["desc"] = desc[:2000]
     return d
