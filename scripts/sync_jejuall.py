@@ -529,8 +529,25 @@ def merge(data, fetched, now, hide_missing=True):
     items = fetched["items"]
     if not items or (hide_missing and old_count >= 10 and len(items) < old_count * 0.5):
         raise SystemExit(f"제주올에서 읽은 매물이 {len(items)}건뿐입니다(기존 {old_count}건). 사이트 구조가 바뀌었을 수 있어 아무것도 바꾸지 않았습니다.")
-    stats = {"added": 0, "updated": 0, "hidden": 0}
+    stats = {"added": 0, "updated": 0, "hidden": 0, "reposted": 0}
     live = set()
+    all_live = {x["num"] for x in items}
+    claimed = set()
+
+    def norm_addr(a):
+        return re.sub(r"[\s번지]|제주특별자치도|제주도|제주시|서귀포시", "", str(a or ""))
+
+    def same_property(old, x, d):
+        """제주올에서 '끌어올리기'(새로 등록 + 예전 것 삭제)한 같은 매물인지."""
+        if old.get("type") != x["type"] or old.get("deal") != x["deal"]:
+            return False
+        a1, a2 = norm_addr(old.get("addr")), norm_addr(d.get("addr"))
+        area_old, area_new = to_num(old.get("area")), to_num(d.get("area") or x["area"])
+        same_area = area_old and area_new and abs(area_old - area_new) < 0.05
+        if a1 and a2:
+            return a1 == a2 and (same_area or not area_old or not area_new)
+        return bool(same_area) and (old.get("dong") or "") == (x["dong"] or "")
+
     for x in items:
         num = x["num"]
         live.add(num)
@@ -544,6 +561,23 @@ def merge(data, fetched, now, hide_missing=True):
             if d.get(k):
                 fields[k] = d[k]
         l = by_num.get(num)
+        if l is None and hide_missing:
+            # 끌어올리기: 예전 번호는 목록에서 사라지고 같은 매물이 새 번호로 올라온 경우 → 기존 매물(사진·제목·추천)을 그대로 이어 씀
+            prev = [(n, o) for n, o in by_num.items()
+                    if n not in all_live and n not in claimed and o.get("status") != "숨김" or
+                    (n not in all_live and n not in claimed and o.get("hiddenBy") == "sync")]
+            prev = [(n, o) for n, o in prev if same_property(o, x, d)]
+            if prev:
+                prev.sort(key=lambda t: (len(t[1].get("photos") or []), t[1].get("createdAt", "")), reverse=True)
+                old_num, l = prev[0]
+                claimed.add(old_num)
+                l.setdefault("previousNums", []).append(old_num)
+                if l.get("hiddenBy") == "sync":
+                    l["status"] = "광고중"
+                    l.pop("hiddenBy", None)
+                by_num.pop(old_num, None)
+                by_num[num] = l
+                stats["reposted"] += 1
         if l is None:
             title = d.get("complex") or x["title"] or f"{x['dong']} {x['type']}".strip()
             l = {"id": f"NK{num}", "status": "광고중", "featured": False, "title": title, "photos": [], "desc": d.get("desc", ""),
@@ -591,7 +625,7 @@ def cmd_merge():
     data = json.loads(LISTINGS.read_text("utf-8")) if LISTINGS.exists() else {"listings": []}
     s = merge(data, fetched, datetime.now(KST).isoformat(timespec="minutes"))
     write_listings(data)
-    print(f"새 매물 {s['added']}건 · 바뀐 매물 {s['updated']}건 · 제주올에서 내려가 숨김 처리 {s['hidden']}건")
+    print(f"새 매물 {s['added']}건 · 끌어올리기로 번호만 바뀐 매물 {s['reposted']}건(사진·제목 유지) · 바뀐 매물 {s['updated']}건 · 제주올에서 내려가 숨김 처리 {s['hidden']}건")
 
 
 def cmd_test(list_file, detail_file=None):
