@@ -9,7 +9,7 @@
   const GH_KEY = "nk_github";
   const API = "https://api.github.com";
 
-  const state = { mode: null, listings: [], gh: null, busy: false };
+  const state = { mode: null, listings: [], meta: {}, gh: null, busy: false };
 
   // ---------- 공통 ----------
   const status = (msg, kind = "") => {
@@ -32,7 +32,7 @@
     while (state.listings.some((l) => l.id === id)) id += "1";
     return id;
   };
-  const payload = () => ({ updatedAt: new Date().toISOString(), listings: state.listings });
+  const payload = () => ({ ...state.meta, updatedAt: new Date().toISOString(), listings: state.listings });
 
   // 저장소 안의 상대 경로 사진을 관리 화면에서 보이게
   const photoSrc = (p) => {
@@ -94,7 +94,7 @@
   const ghRepoPath = () => `/repos/${encodeURIComponent(state.gh.owner)}/${encodeURIComponent(state.gh.repo)}`;
   const explain = (e) => {
     if (e.status === 401) return "토큰이 맞지 않거나 만료되었습니다. 토큰을 다시 만들어 붙여 넣어 주세요.";
-    if (e.status === 403) return "토큰에 쓰기 권한이 없습니다. 토큰 권한에서 Contents: Read and write 를 선택해 주세요.";
+    if (e.status === 403) return e.actions ? "토큰에 Actions 권한이 없습니다. 토큰 권한에서 Actions: Read and write 도 선택해 주세요." : "토큰에 쓰기 권한이 없습니다. 토큰 권한에서 Contents: Read and write 를 선택해 주세요.";
     if (e.status === 404) return "저장소나 파일을 찾을 수 없습니다. 계정·저장소 이름을 확인하고, 사이트 파일(data/listings.json 포함)이 저장소에 올라가 있는지 확인해 주세요.";
     if (e.status === 409 && /empty/i.test(e.message)) return "저장소가 비어 있습니다. 사이트 파일을 먼저 저장소에 올려 주세요.";
     if (e.status === 422) return "그사이 다른 곳에서 저장소가 바뀌었습니다. 다시 [연결하고 매물 불러오기]를 눌러 최신 상태로 불러온 뒤 저장해 주세요.";
@@ -104,7 +104,10 @@
 
   async function ghLoad() {
     const text = await gh(`${ghRepoPath()}/contents/data/listings.json?ref=${encodeURIComponent(state.gh.branch)}`, { raw: true });
-    return JSON.parse(text).listings || [];
+    const data = JSON.parse(text);
+    const { listings, ...meta } = data;
+    state.meta = meta;
+    return listings || [];
   }
 
   // 여러 파일을 커밋 한 번으로 저장 (files: {path: base64 | null(삭제)})
@@ -173,11 +176,15 @@
     $("#local-tools").hidden = false;
     const saved = NK.readLocal();
     if (saved && Array.isArray(saved.listings)) {
-      state.listings = saved.listings;
+      const { listings, ...meta } = saved;
+      state.listings = listings;
+      state.meta = meta;
     } else {
       ls.del(MODE_KEY);
       const pub = await NK.loadListings();
-      state.listings = JSON.parse(JSON.stringify(pub.listings || []));
+      const { listings, practice, ...meta } = JSON.parse(JSON.stringify(pub));
+      state.listings = listings || [];
+      state.meta = meta;
       ls.set(MODE_KEY, "local");
       ls.set(LOCAL_KEY, JSON.stringify(payload()));
     }
@@ -227,6 +234,7 @@
       .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
       .filter((l) => (!st || l.status === st) && (!q || [l.id, l.title, l.dong, l.city, l.type, ...tagsOf(l)].join(" ").toLowerCase().includes(q)));
     $("#a-count").textContent = `${state.listings.length}건`;
+    renderSyncInfo();
     const ready = state.mode === "local" || (state.mode === "github" && state.gh && !$("#status").classList.contains("err"));
     $("#btn-new").disabled = !ready;
     if (!list.length) {
@@ -237,7 +245,7 @@
       <tr data-id="${esc(l.id)}" class="${l.status !== "광고중" ? "is-off" : ""}">
         <td class="a-thumb">${l.photos && l.photos[0] ? `<img src="${esc(photoSrc(l.photos[0]))}" alt="" loading="lazy" />` : '<span class="a-nophoto">사진 없음</span>'}</td>
         <td class="a-main">
-          <span class="card__labels"><span class="lbl">${esc(l.type)}</span><span class="lbl lbl--deal lbl--${esc(l.deal)}">${esc(l.deal)}</span>${l.featured ? '<span class="lbl lbl--star">추천</span>' : ""}</span>
+          <span class="card__labels"><span class="lbl">${esc(l.type)}</span><span class="lbl lbl--deal lbl--${esc(l.deal)}">${esc(l.deal)}</span>${l.featured ? '<span class="lbl lbl--star">추천</span>' : ""}${l.jejuallNum || /^제주올/.test(l.source || "") ? '<span class="lbl lbl--src">제주올</span>' : ""}</span>
           <strong>${esc(l.title)}</strong>
           <small>${esc(placeOf(l))} · ${l.area || "-"}㎡ · ${esc(l.id)}</small>
         </td>
@@ -357,6 +365,8 @@
     form.elements.featured.checked = !!v.featured;
     photos = [...(v.photos || [])];
     renderPhotos();
+    const fromJ = l && (l.jejuallNum || /^제주올/.test(l.source || ""));
+    $("#ed-src").hidden = !fromJ;
     syncPriceFields();
     dlg.showModal();
     form.elements.title.focus();
@@ -432,6 +442,169 @@
     ls.del(LOCAL_KEY);
     await useLocal();
     status("연습 데이터를 홈페이지의 원래 매물로 되돌렸습니다.", "ok");
+  });
+
+
+  // ---------- 제주올 자동 가져오기 표시 ----------
+  function renderSyncInfo() {
+    const at = state.meta && state.meta.jejuallSyncedAt;
+    const n = state.listings.filter((l) => l.jejuallNum || /^제주올/.test(l.source || "")).length;
+    $("#sync-info").textContent = at
+      ? `마지막으로 가져온 시각: ${at.replace("T", " ").slice(0, 16)} · 제주올 매물 ${n}건 (매일 아침 7시쯤 자동으로 가져옵니다)`
+      : `제주올 매물 ${n}건 · 매일 아침 7시쯤 자동으로 가져옵니다 (홈페이지를 GitHub에 올린 뒤부터 동작)`;
+    $("#btn-sync").hidden = !(state.mode === "github" && state.gh && !$("#status").classList.contains("err"));
+  }
+  $("#btn-sync").addEventListener("click", async (e) => {
+    const b = e.currentTarget;
+    b.disabled = true;
+    status("제주올 매물 가져오기를 시작하는 중…", "busy");
+    try {
+      await gh(`${ghRepoPath()}/actions/workflows/sync-jejuall.yml/dispatches`, { method: "POST", body: JSON.stringify({ ref: state.gh.branch }) })
+        .catch((err) => { err.actions = true; throw err; });
+      status("가져오기를 시작했습니다. 새 매물만 읽으면 몇 분, 처음에는 매물 수만큼(1건에 1분) 걸립니다. 끝나면 이 화면에서 [연결하고 매물 불러오기]를 다시 눌러 확인하세요.", "ok");
+    } catch (err) {
+      status(explain(err), "err");
+    } finally {
+      b.disabled = false;
+    }
+  });
+
+  // ---------- 사진 폴더 한꺼번에 올리기 ----------
+  const IMG_RE = /\.(jpe?g|png|webp)$/i;
+  const norm = (s) => String(s || "").replace(/제주특별자치도|제주도|제주시|서귀포시|번지/g, "").replace(/[\s()[\]_.,·\-~]/g, "").toLowerCase();
+  const jibunOf = (s) => {
+    const m = String(s || "").match(/(\d{1,5})(?:\s*-\s*(\d{1,5}))?(?!.*\d)/);
+    return m ? (m[2] ? `${m[1]}-${m[2]}` : m[1]) : "";
+  };
+  const typeOfFolder = (name) => {
+    const rules = [["분양", "분양권"], ["오피스텔", "오피스텔"], ["아파트", "아파트"], ["빌라", "빌라·다세대"], ["다세대", "빌라·다세대"],
+      ["단독", "단독·다가구"], ["주택", "단독·다가구"], ["원룸", "원룸·투룸"], ["상가", "상가·점포"], ["점포", "상가·점포"],
+      ["토지", "토지·임야"], ["임야", "토지·임야"], ["사무실", "사무실"], ["건물", "건물"], ["창고", "공장·창고"], ["공장", "공장·창고"]];
+    const r = rules.find(([k]) => (name || "").includes(k));
+    return r ? r[1] : "";
+  };
+  function score(folder, typeHint, l) {
+    const f = norm(folder), fj = jibunOf(folder);
+    let sc = 0;
+    const lj = jibunOf(l.addr);
+    const dongs = [l.dong, String(l.addr || "").replace(/\d.*$/, "")].map((d) => norm(d).replace(/(동|리|읍|면)$/, "")).filter((d) => d.length >= 2);
+    if (lj && fj && lj === fj) sc += 50;
+    if (dongs.some((d) => f.includes(d))) sc += 20;
+    const t = norm(l.title);
+    if (t.length >= 3 && (f.includes(t) || t.includes(f))) sc += 45;
+    sc += Math.min(20, tagsOf(l).filter((x) => norm(x).length >= 3 && f.includes(norm(x)) && norm(x) !== norm(l.dong)).length * 10);
+    if (typeHint) sc += typeHint === l.type || (typeHint === "상가·점포" && /상가|건물/.test(l.type)) ? 5 : -15;
+    return sc;
+  }
+  let groups = [];
+  function buildGroups(files) {
+    const map = new Map();
+    for (const f of files) {
+      const rel = f.webkitRelativePath || f.name;
+      const parts = rel.split("/");
+      if (parts.length < 2) continue;
+      const dirs = parts.slice(0, -1);
+      const key = dirs.join("/");
+      if (!map.has(key)) {
+        const name = dirs[dirs.length - 1];
+        const typeHint = dirs.slice(0, -1).map(typeOfFolder).filter(Boolean).pop() || "";
+        map.set(key, { key, name, typeFolder: dirs.length > 1 ? dirs[dirs.length - 2] : "", typeHint, files: [], skipped: 0 });
+      }
+      const g = map.get(key);
+      if (IMG_RE.test(f.name)) g.files.push(f);
+      else if (/\.(heic|heif)$/i.test(f.name)) g.skipped++;
+    }
+    const collator = new Intl.Collator("ko", { numeric: true });
+    groups = [...map.values()].filter((g) => g.files.length || g.skipped);
+    for (const g of groups) {
+      g.files.sort((a, b) => collator.compare(a.name, b.name));
+      const ranked = state.listings.map((l) => ({ l, s: score(g.name, g.typeHint, l) })).sort((a, b) => b.s - a.s);
+      const top = ranked[0], second = ranked[1];
+      g.auto = top && top.s >= 45 && (!second || top.s - second.s >= 10) ? top.l.id : "";
+      g.target = g.auto;
+      g.state = "";
+    }
+    groups.sort((a, b) => (a.auto ? 0 : 1) - (b.auto ? 0 : 1) || collator.compare(a.key, b.key));
+  }
+  function renderBulk() {
+    const opts = [...state.listings].sort((a, b) => String(a.title).localeCompare(String(b.title), "ko"));
+    const matched = groups.filter((g) => g.target).length;
+    $("#bulk-summary").textContent = `폴더 ${groups.length}개 중 ${groups.filter((g) => g.auto).length}개를 자동으로 짝지었습니다. 짝이 없거나 틀린 폴더는 직접 골라 주세요. (올릴 폴더 ${matched}개)`;
+    $("#bulk-rows").innerHTML = groups.map((g, i) => {
+      const cur = state.listings.find((l) => l.id === g.target);
+      const has = cur && (cur.photos || []).length;
+      return `<tr class="${g.target ? "" : "is-off"}">
+        <td><strong>${esc(g.name)}</strong><br /><small class="muted">${esc(g.typeFolder)}</small></td>
+        <td class="num">${g.files.length}장${g.skipped ? `<br /><small class="warn">HEIC ${g.skipped}장 제외</small>` : ""}</td>
+        <td><select data-g="${i}" aria-label="${esc(g.name)} 폴더에 연결할 매물">
+          <option value="">— 올리지 않음 —</option>
+          ${opts.map((l) => `<option value="${esc(l.id)}"${l.id === g.target ? " selected" : ""}>${esc(l.title)} · ${esc(l.dong)} · ${esc(l.type)}${(l.photos || []).length ? ` (사진 ${(l.photos || []).length})` : ""}</option>`).join("")}
+        </select>${g.auto && g.auto === g.target ? '<small class="ok-mark">자동 짝</small>' : ""}</td>
+        <td class="bulk-state">${esc(g.state || (has && $("#bulk-skip").checked ? "이미 사진 있음 → 건너뜀" : ""))}</td>
+      </tr>`;
+    }).join("");
+    $("#bulk-go").disabled = !matched || state.busy;
+  }
+  $("#bulk-rows").addEventListener("change", (e) => {
+    const sel = e.target.closest("select[data-g]");
+    if (!sel) return;
+    groups[Number(sel.dataset.g)].target = sel.value;
+    renderBulk();
+  });
+  $("#bulk-skip").addEventListener("change", () => groups.length && renderBulk());
+  $("#bulk-input").addEventListener("change", (e) => {
+    const files = [...e.target.files];
+    e.target.value = "";
+    if (!state.listings.length) { status("먼저 매물 목록을 불러와 주세요.", "err"); return; }
+    buildGroups(files);
+    $("#bulk-result").hidden = !groups.length;
+    $("#bulk-status").textContent = groups.length ? "" : "사진이 들어 있는 폴더를 찾지 못했습니다.";
+    if (!groups.length) { $("#bulk-result").hidden = false; $("#bulk-rows").innerHTML = ""; return; }
+    renderBulk();
+  });
+  $("#bulk-clear").addEventListener("click", () => { groups = []; $("#bulk-result").hidden = true; });
+
+  $("#bulk-go").addEventListener("click", async () => {
+    if (state.busy) return;
+    const skip = $("#bulk-skip").checked;
+    const max = Math.max(1, Math.min(30, Number($("#bulk-max").value) || 15));
+    const jobs = groups.filter((g) => g.target).map((g) => ({ g, l: state.listings.find((x) => x.id === g.target) }))
+      .filter(({ g, l }) => l && !(skip && (l.photos || []).length) && g.files.length);
+    if (!jobs.length) { $("#bulk-status").textContent = "올릴 폴더가 없습니다 (모두 이미 사진이 있거나 연결되지 않음)."; return; }
+    const side = state.mode === "github" ? 1600 : 900, q = state.mode === "github" ? 0.82 : 0.65;
+    const BATCH = state.mode === "github" ? 6 : 1000;  // GitHub: 매물 6개마다 한 번씩 저장
+    $("#bulk-go").disabled = true;
+    let done = 0, photoCount = 0;
+    for (let i = 0; i < jobs.length; i += BATCH) {
+      const chunk = jobs.slice(i, i + BATCH);
+      const before = JSON.parse(JSON.stringify(state.listings));
+      const removed = [];
+      for (const { g, l } of chunk) {
+        g.state = "사진 줄이는 중…"; renderBulk();
+        const urls = [];
+        for (const f of g.files.slice(0, max)) {
+          try { urls.push(await resizeImage(f, side, q)); } catch {}
+        }
+        if (!skip) removed.push(...(l.photos || []).filter((p) => p.startsWith("images/")));
+        l.photos = skip ? [...(l.photos || []), ...urls] : urls;
+        photoCount += urls.length;
+        g.state = `${urls.length}장 준비됨`;
+      }
+      renderBulk();
+      $("#bulk-status").textContent = `저장하는 중… (${Math.min(i + BATCH, jobs.length)}/${jobs.length} 매물)`;
+      const ok = await save(`매물 사진 올리기 (${chunk.map((c) => c.l.title).join(", ").slice(0, 80)})`, removed, "사진을 저장했습니다.");
+      if (!ok) {
+        state.listings = before;
+        chunk.forEach(({ g }) => (g.state = "저장 실패"));
+        renderBulk();
+        $("#bulk-status").textContent = `${done}개 매물까지 저장했고, 그다음에서 멈췄습니다: ${$("#status").textContent}`;
+        return;
+      }
+      chunk.forEach(({ g }) => (g.state = "올림 ✓"));
+      done += chunk.length;
+      renderBulk();
+    }
+    $("#bulk-status").textContent = `매물 ${done}개에 사진 ${photoCount}장을 올렸습니다.${state.mode === "github" ? " 홈페이지에는 1~2분 뒤 반영됩니다." : ""}`;
   });
 
   // ---------- 시작 ----------

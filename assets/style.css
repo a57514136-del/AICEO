@@ -512,3 +512,26 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
   .list-tools, .list-tools input { width: 100%; }
 }
 .gh-form[hidden], .local-tools[hidden] { display: none; }
+
+/* 제주올 가져오기 · 사진 폴더 올리기 */
+.sync-info { margin: 0 0 10px; font-weight: 600; }
+.sync-rules { margin: 0; padding-left: 20px; color: var(--ink-2); font-size: 14px; line-height: 1.8; }
+.lbl--src { background: #e8f1ff; color: #2459b8; }
+.src-note { margin: 12px 0 0; padding: 12px 14px; border-radius: 10px; background: #eef5ff; color: #2459b8; font-size: 13px; line-height: 1.6; }
+.src-note[hidden] { display: none; }
+.bulk-intro { margin: -6px 0 16px; font-size: 14px; }
+.bulk-intro code { background: var(--pill); padding: 2px 6px; border-radius: 4px; color: var(--ink); }
+.bulk-pick { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+.bulk-pick .check { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.bulk-pick .check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.bulk-max { font-size: 14px; }
+.bulk-max input { width: 64px; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.bulk-summary { margin: 18px 0 10px; font-weight: 600; }
+.bulk-table { min-width: 680px; }
+.bulk-table select { font: inherit; font-size: 14px; padding: 7px 8px; border: 1px solid var(--line); border-radius: 8px; width: 100%; max-width: 380px; background: #fff; }
+.bulk-state { font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.ok-mark { display: inline-block; margin-top: 4px; font-size: 12px; color: #1f8a5b; font-weight: 600; }
+.warn { color: #b26a00; }
+#bulk-result[hidden] { display: none; }
+#bulk-result .gh-actions { margin-top: 14px; }
+.btn[hidden] { display: none; }

@@ -1,0 +1,46 @@
+# 매일 아침 제주올(나경공인중개사 매물 페이지)의 매물을 홈페이지로 가져옵니다.
+# 제주올 요청(1분에 1번)을 지키므로 처음 한 번은 오래 걸리고(매물 수 × 1분), 이후에는 새 매물만 읽어 금방 끝납니다.
+# 수동 실행: 저장소 Actions → "제주올 매물 가져오기" → Run workflow  (매물관리 화면의 버튼으로도 가능)
+name: 제주올 매물 가져오기
+
+on:
+  schedule:
+    - cron: "50 21 * * *"   # 매일 06:50 KST
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: listings-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 제주올에서 매물 읽기
+        run: python3 scripts/sync_jejuall.py fetch
+
+      - name: 홈페이지 매물에 합치고 저장
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # 읽는 동안 매물관리에서 바뀐 내용을 먼저 받아 온 뒤 합칩니다. 동시에 저장되면 최대 3번 다시 시도.
+          for i in 1 2 3; do
+            git fetch origin "${GITHUB_REF_NAME}"
+            git reset --hard "origin/${GITHUB_REF_NAME}"
+            python3 scripts/sync_jejuall.py merge
+            git add data/listings.json data/listings.js
+            if git diff --cached --quiet; then echo "바뀐 매물 없음"; exit 0; fi
+            git commit -m "제주올 매물 자동 가져오기 $(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M')"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then exit 0; fi
+            sleep 10
+          done
+          echo "저장하지 못했습니다(동시에 다른 저장이 계속됨). 다음 실행 때 다시 시도합니다."; exit 1
