@@ -3,9 +3,9 @@
 # 수동 실행: 저장소 Actions → "제주올 매물 가져오기" → Run workflow  (매물관리 화면의 버튼으로도 가능)
 name: 제주올 매물 가져오기
 
+# ※ 제주올이 해외(GitHub) 서버의 접속을 막고 있어 GitHub에서는 동작하지 않습니다(2026-10-03 점검).
+#   매일 자동 실행은 꺼 두었고, 가져오기는 노트북(한국)에서 실행합니다.
 on:
-  schedule:
-    - cron: "50 21 * * *"   # 매일 06:50 KST
   workflow_dispatch:
 
 permissions:
