@@ -1,0 +1,38 @@
+# 점검용: GitHub 서버에서 제주올에 접속되는지, 매물 사진 원본을 받을 수 있는지 확인합니다. (수동 실행 전용)
+name: 제주올 연결 점검
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 접속·사진 점검
+        run: |
+          UA="Mozilla/5.0 (compatible; NakyungHomepageSync/1.0; +mailto:nk2022@naver.com)"
+          probe() {
+            out=$(curl -sS -L -o /tmp/f -A "$UA" -w "%{http_code} %{size_download} %{content_type}" --max-time 40 "$1" 2>&1) || true
+            dim=$(python3 -c "import struct,sys;b=open('/tmp/f','rb').read();i=2
+          while b[:2]==b'\xff\xd8' and i<len(b)-9:
+              m=b[i+1];l=struct.unpack('>H',b[i+2:i+4])[0]
+              if m in (0xC0,0xC2): h,w=struct.unpack('>HH',b[i+5:i+9]);print(f'{w}x{h}');break
+              i+=2+l" 2>/dev/null)
+            echo "::notice title=$2::$out $dim"
+            sleep 5
+          }
+          probe "https://jejuall.com/CProperty/myHome/params/num/180659" "목록페이지"
+          probe "https://jejuall.com/CProperty/detail?num=6514425" "상세페이지"
+          B=shmh222/260930202117x454_v8x
+          probe "https://jejuall.com/uploadFile_Thumb/${B}_thumb.jpg" "사진-썸네일"
+          probe "https://jejuall.com/uploadFile/${B}.jpg" "사진-원본후보1"
+          probe "https://jejuall.com/uploadFile/${B}_thumb.jpg" "사진-원본후보2"
+          probe "https://jejuall.com/uploadFile_Thumb/${B}.jpg" "사진-원본후보3"
+          probe "https://jejuall.com/uploadFile/property/${B}.jpg" "사진-원본후보4"
+          curl -sS -A "$UA" --max-time 40 "https://jejuall.com/CProperty/detail?num=6514425" -o /tmp/d.html || true
+          echo "::notice title=상세페이지 사진경로::$(grep -oE '/upload[A-Za-z_]*/[^\"'"'"' )]*\.(jpg|jpeg|png)' /tmp/d.html | sed -E 's/[0-9a-z]{3}(_thumb)?\.(jpg|jpeg|png)$//' | sort | uniq -c | sort -rn | head -5 | tr '\n' ' ')"
+          echo "::notice title=상세페이지 data속성::$(grep -oE 'data-[a-z-]*=\"[^\"]*upload[^\"]*\"' /tmp/d.html | head -3 | tr '\n' ' ')"

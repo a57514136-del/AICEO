@@ -18,12 +18,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: 인증키 확인
+        id: key
+        env:
+          MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
+        run: |
+          if [ -z "$MOLIT_API_KEY" ]; then
+            echo "::notice title=실거래가::공공데이터포털 인증키(MOLIT_API_KEY)가 아직 없어 건너뜁니다."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
       - name: 실거래가 조회
+        if: steps.key.outputs.skip != '1'
         env:
           MOLIT_API_KEY: ${{ secrets.MOLIT_API_KEY }}
           LAWD_CODES: "50110:제주시,50130:서귀포시"
         run: node scripts/fetch-trades.mjs
       - name: 변경 사항 커밋
+        if: steps.key.outputs.skip != '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

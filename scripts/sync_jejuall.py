@@ -637,7 +637,7 @@ def cmd_test(list_file, detail_file=None):
         print(json.dumps(parse_detail(Path(detail_file).read_text("utf-8", errors="replace")), ensure_ascii=False, indent=2))
 
 
-if __name__ == "__main__":
+def _main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else ""
     if cmd == "fetch":
         cmd_fetch()
@@ -649,3 +649,19 @@ if __name__ == "__main__":
         cmd_test(*sys.argv[2:4])
     else:
         print(__doc__)
+
+
+if __name__ == "__main__":
+    try:
+        _main()
+    except SystemExit as e:
+        if e.code not in (None, 0):
+            # GitHub Actions 요약 화면에 이유가 보이도록
+            print(f"::error title=제주올 매물 가져오기::{e.code}", flush=True)
+        raise
+    except Exception as e:  # 예상 못 한 오류도 이유를 남김
+        import traceback
+        traceback.print_exc()
+        msg = f"{type(e).__name__}: {e}".replace("\n", " ")[:900]
+        print(f"::error title=제주올 매물 가져오기 오류::{msg}", flush=True)
+        sys.exit(1)
