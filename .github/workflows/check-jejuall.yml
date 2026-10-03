@@ -13,18 +13,23 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 접속·사진 점검
+        shell: bash {0}
         run: |
           UA="Mozilla/5.0 (compatible; NakyungHomepageSync/1.0; +mailto:nk2022@naver.com)"
           probe() {
-            out=$(curl -sS -L -o /tmp/f -A "$UA" -w "%{http_code} %{size_download} %{content_type}" --max-time 40 "$1" 2>&1) || true
+            rm -f /tmp/f
+            out=$(curl -sS -L -o /tmp/f -A "$UA" -w "%{http_code} %{size_download} %{content_type}" --max-time 40 "$1" 2>&1 | tr '\n' ' ')
             dim=$(python3 -c "import struct,sys;b=open('/tmp/f','rb').read();i=2
           while b[:2]==b'\xff\xd8' and i<len(b)-9:
               m=b[i+1];l=struct.unpack('>H',b[i+2:i+4])[0]
               if m in (0xC0,0xC2): h,w=struct.unpack('>HH',b[i+5:i+9]);print(f'{w}x{h}');break
-              i+=2+l" 2>/dev/null)
+              i+=2+l" 2>/dev/null || true)
             echo "::notice title=$2::$out $dim"
             sleep 5
           }
+          echo "::notice title=러너 IP::$(curl -sS --max-time 15 https://api.ipify.org 2>&1)"
+          probe "https://jejuall.com/" "제주올 첫화면"
+          probe "https://www.jejuall.com/CProperty/myHome/params/num/180659" "목록페이지(www)"
           probe "https://jejuall.com/CProperty/myHome/params/num/180659" "목록페이지"
           probe "https://jejuall.com/CProperty/detail?num=6514425" "상세페이지"
           B=shmh222/260930202117x454_v8x
