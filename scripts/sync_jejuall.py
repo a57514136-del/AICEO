@@ -33,7 +33,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OFFICE_NUM = os.environ.get("JEJUALL_OFFICE", "180659")
-BASE = "https://jejuall.com"
+BASE = os.environ.get("JEJUALL_BASE", "https://jejuall.com").rstrip("/")
 LIST_URL = f"{BASE}/CProperty/myHome/params/num/{OFFICE_NUM}"
 DETAIL_URL = f"{BASE}/CProperty/detail?num={{num}}"
 DELAY = float(os.environ.get("JEJUALL_DELAY", "60"))  # robots.txt Crawl-delay
@@ -375,6 +375,38 @@ NAMED_TYPES = {"아파트", "오피스텔", "빌라·다세대", "분양권"}
 EXTRA_SKIP = re.compile(r"(방\d|확장|입주|노출|좋음|완비|허가|근생|재생|임대|매매|전세|월세|연세|가능|최상|급)")
 
 
+def parse_gallery(src):
+    """상세 페이지의 이 매물 사진 주소들 (큰 사진 + 작은 사진 목록, 관련 매물 사진은 제외)."""
+    root = parse_html(src)
+    urls = []
+    for n in root.iter():
+        if n.tag != "img":
+            continue
+        src_ = n.attrs.get("src", "")
+        if "uploadFile" not in src_:
+            continue
+        if n.attrs.get("id") == "bigimg" or "bigimg.src" in n.attrs.get("onmouseover", ""):
+            if src_ not in urls:
+                urls.append(src_)
+    return urls
+
+
+def photo_candidates(thumb_url):
+    """썸네일 주소 → 원본일 가능성이 있는 주소들 (앞쪽부터 시도, 마지막은 썸네일 그대로)."""
+    u = thumb_url
+    cands = []
+    if "/uploadFile_Thumb/" in u:
+        cands.append(u.replace("/uploadFile_Thumb/", "/uploadFile/").replace("_thumb.", "."))
+        cands.append(u.replace("/uploadFile_Thumb/", "/uploadFile/"))
+    cands.append(u.replace("_thumb.", "."))
+    cands.append(u)
+    out = []
+    for c in cands:
+        if c not in out:
+            out.append(c)
+    return out
+
+
 def title_from_tags(tags, dong, typ):
     if typ not in NAMED_TYPES:
         tags = []
@@ -519,7 +551,7 @@ def cmd_fetch():
     print(f"제주올 매물 {len(items)}건을 읽었습니다.")
 
 
-def merge(data, fetched, now, hide_missing=True):
+def merge(data, fetched, now, hide_missing=True, repost_any=False):
     """data(listings.json 내용)에 fetched(제주올에서 읽은 것)를 합침. 바뀐 건수를 돌려줌."""
     listings = data.setdefault("listings", [])
     by_num = {l.get("jejuallNum") or (l["id"][2:] if str(l.get("id", "")).startswith("NK") and l["id"][2:].isdigit() else None): l
@@ -561,11 +593,12 @@ def merge(data, fetched, now, hide_missing=True):
             if d.get(k):
                 fields[k] = d[k]
         l = by_num.get(num)
-        if l is None and hide_missing:
+        if l is None and (hide_missing or repost_any):
             # 끌어올리기: 예전 번호는 목록에서 사라지고 같은 매물이 새 번호로 올라온 경우 → 기존 매물(사진·제목·추천)을 그대로 이어 씀
+            # repost_any(빠른 업데이트): 목록 전체를 읽지 않으므로 '목록에서 사라졌는지' 대신 같은 매물 여부만 봄
             prev = [(n, o) for n, o in by_num.items()
-                    if n not in all_live and n not in claimed and o.get("status") != "숨김" or
-                    (n not in all_live and n not in claimed and o.get("hiddenBy") == "sync")]
+                    if n not in claimed and (repost_any or n not in all_live)
+                    and (o.get("status") != "숨김" or o.get("hiddenBy") == "sync")]
             prev = [(n, o) for n, o in prev if same_property(o, x, d)]
             if prev:
                 prev.sort(key=lambda t: (len(t[1].get("photos") or []), t[1].get("createdAt", "")), reverse=True)
