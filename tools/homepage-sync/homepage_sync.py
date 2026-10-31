@@ -237,8 +237,28 @@ def match_folder(listing, folders):
 
 
 # ---------------------------------------------------------------- 실행
+LOCK_FILE = HERE / "작업중.lock"
+
+
+class Busy(Exception):
+    pass
+
+
 def run(mode, cfg=None, log=print, should_stop=lambda: False):
-    """mode: 'quick'(신규만) | 'full'(전체 점검). 결과 요약 dict 를 돌려줌."""
+    """mode: 'quick'(신규만) | 'full'(전체 점검). 결과 요약 dict 를 돌려줌. 동시에 두 개는 돌지 않음."""
+    if LOCK_FILE.exists() and time.time() - LOCK_FILE.stat().st_mtime < 5 * 3600:
+        raise Busy("다른 연동 작업이 아직 진행 중입니다. 끝난 뒤 다시 시도해 주세요.")
+    LOCK_FILE.write_text(f"{mode} {datetime.now().isoformat()}", "utf-8")
+    try:
+        return _run(mode, cfg, log, should_stop)
+    finally:
+        try:
+            LOCK_FILE.unlink()
+        except OSError:
+            pass
+
+
+def _run(mode, cfg=None, log=print, should_stop=lambda: False):
     cfg = cfg or load_config()
     started = time.time()
     gh = GitHub(cfg)
@@ -300,10 +320,25 @@ def run(mode, cfg=None, log=print, should_stop=lambda: False):
         old = known.get(x["num"])
         if old is None:
             return True
+        if J.signature(x) != old.get("jejuallSig"):
+            return True  # 가격·해시태그 등이 바뀜 → 사진·설명도 바뀌었을 수 있음
         if mode == "quick":
             return False
-        return (J.signature(x) != old.get("jejuallSig") or not old.get("detailAt") or not old.get("photos"))
+        return not old.get("detailAt") or not old.get("photos")
     need = [x for x in items if needs_detail(x)]
+    if mode == "full":
+        # 제주올에서 사진·설명만 바꾼 경우도 따라가도록: 상세를 읽은 지 7일 넘은 매물을 하루 30건씩 돌아가며 다시 읽음
+        week_ago = (datetime.now(J.KST).timestamp() - 7 * 86400)
+        def stale(x):
+            at = known.get(x["num"], {}).get("detailAt") or ""
+            try:
+                return datetime.fromisoformat(at).timestamp() < week_ago
+            except ValueError:
+                return False
+        extra = sorted([x for x in items if x not in need and stale(x)], key=lambda x: known[x["num"]].get("detailAt", ""))[:30]
+        if extra:
+            log(f"  오래전에 확인한 매물 {len(extra)}건도 사진·설명이 바뀌었는지 다시 봅니다.")
+        need += extra
     log(f"상세 페이지 {len(need)}건을 읽습니다 (1건에 약 {int(rd.delay)}초)…")
     for i, x in enumerate(need, 1):
         try:
@@ -370,12 +405,20 @@ def run(mode, cfg=None, log=print, should_stop=lambda: False):
                     log("  중간 저장…")
                     flush()
         log(f"  노트북 사진으로 채운 매물 {local_listings}건")
+    def wants_jejuall_photos(l, urls):
+        if l.get("photosFrom") in ("노트북", "직접"):
+            return False          # 노트북 사진·매물관리에서 직접 넣은 사진은 그대로 둠
+        if not l.get("photos"):
+            return True
+        if l.get("photosFrom") == "제주올":
+            return l.get("jejuallPhotos") != urls[:max_photos]   # 제주올에서 사진을 바꿨으면 똑같이 바꿈
+        return False              # 예전 방식으로 넣은 사진(출처 표시 없음)도 건드리지 않음
     photo_jobs = [(by_num[x["num"]], x["photoUrls"]) for x in items
-                  if x.get("photoUrls") and x["num"] in by_num and not by_num[x["num"]].get("photos")]
+                  if x.get("photoUrls") and x["num"] in by_num and wants_jejuall_photos(by_num[x["num"]], x["photoUrls"])]
 
 
     if photo_jobs:
-        log(f"노트북에 사진 폴더가 없는 매물 {len(photo_jobs)}건은 제주올 사진을 받습니다…")
+        log(f"제주올 사진을 받을 매물 {len(photo_jobs)}건 (새 매물 · 제주올에서 사진을 바꾼 매물)…")
     for i, (l, urls) in enumerate(photo_jobs, 1):
         paths = []
         for k, u in enumerate(urls[:max_photos], 1):
@@ -389,8 +432,12 @@ def run(mode, cfg=None, log=print, should_stop=lambda: False):
             pending[path] = shrink(img)
             paths.append(path)
         if paths:
+            for old in l.get("photos") or []:          # 사진 수가 줄었으면 남는 예전 파일 지우기
+                if old.startswith("images/") and old not in paths:
+                    pending[old] = None
             l["photos"] = paths
             l["photosFrom"] = "제주올"
+            l["jejuallPhotos"] = urls[:max_photos]
             saved_listings += 1
             saved_photos += len(paths)
         log(f"  [{i}/{len(photo_jobs)}] {l['title']} · 사진 {len(paths)}장")
@@ -410,6 +457,37 @@ def run(mode, cfg=None, log=print, should_stop=lambda: False):
     return result
 
 
+# ---------------------------------------------------------------- 자동 연동 (Windows 작업 스케줄러)
+TASK_FULL, TASK_QUICK = "NakyungHomepageFull", "NakyungHomepageQuick"
+
+
+def _schtasks(*args):
+    import subprocess
+    r = subprocess.run(["schtasks", *args], capture_output=True, text=True, encoding="cp949", errors="replace")
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+def auto_status():
+    if os.name != "nt":
+        return None
+    return _schtasks("/Query", "/TN", TASK_QUICK)[0] == 0
+
+
+def auto_on():
+    """매일 07:00 전체 점검 + 08~21시 매시간 신규 매물 올리기."""
+    full_bat, quick_bat = HERE / "run_full.bat", HERE / "run_quick.bat"
+    c1, o1 = _schtasks("/Create", "/F", "/SC", "DAILY", "/ST", "07:00", "/TN", TASK_FULL, "/TR", f'"{full_bat}"')
+    c2, o2 = _schtasks("/Create", "/F", "/SC", "DAILY", "/ST", "08:00", "/RI", "60", "/DU", "13:00",
+                       "/TN", TASK_QUICK, "/TR", f'"{quick_bat}"')
+    if c1 or c2:
+        raise RuntimeError("자동 연동을 켜지 못했습니다: " + (o1 + o2).strip()[:300])
+
+
+def auto_off():
+    for t in (TASK_FULL, TASK_QUICK):
+        _schtasks("/Delete", "/F", "/TN", t)
+
+
 def _file_log(msg):
     line = f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {msg}"
     print(line, flush=True)
@@ -424,6 +502,8 @@ if __name__ == "__main__":
         sys.exit(0)
     try:
         run(mode, log=_file_log)
+    except Busy as e:
+        _file_log(f"건너뜀: {e}")
     except (GitHubError, RuntimeError) as e:
         _file_log(f"멈춤: {e}")
         sys.exit(1)

@@ -75,6 +75,28 @@ st.caption("• 신규 매물 올리기: 새 매물 추가, 끌어올리기한 �
            "• 전체 점검: 제주올에서 내린 매물은 홈페이지에서 숨김, 빠진 상세정보·사진 채움  \n"
            "• 사진: 노트북 사진 폴더(주소가 같은 폴더) → 없으면 제주올 사진")
 
+# ---------------------------------------------------------------- 자동 연동 ON/OFF (오일장 비서의 자동갱신처럼)
+st.divider()
+st.subheader("⚡ 자동 연동")
+st.caption("켜 두면 버튼을 누르지 않아도 됩니다: 매일 08~21시 매시간 신규 매물 올리기, 매일 07시 전체 점검. 노트북이 켜져 있어야 합니다.")
+status = H.auto_status()
+if status is None:
+    st.info("자동 연동은 윈도우 노트북에서만 켤 수 있습니다.")
+else:
+    a1, a2 = st.columns(2)
+    if wide_button(a1, "⏱ 자동 연동 ON", disabled=not cfg.get("token")):
+        try:
+            H.auto_on()
+            st.success("자동 연동을 켰습니다.")
+            status = True
+        except Exception as e:
+            st.error(str(e))
+    if wide_button(a2, "⏹ 자동 연동 OFF"):
+        H.auto_off()
+        st.success("자동 연동을 껐습니다.")
+        status = False
+    st.markdown("🟢 **자동 연동 ON**" if status else "⚪ 자동 연동 OFF")
+
 if quick or full:
     mode = "quick" if quick else "full"
     lines = []
@@ -92,6 +114,8 @@ if quick or full:
             st.success(f"완료! 새 매물 {res['added']}건 · 끌어올리기 {res['reposted']}건 · 바뀐 매물 {res['updated']}건 · "
                        f"숨김 {res['hidden']}건 · 사진 {res['photos']}장. 1~2분 뒤 홈페이지에 나타납니다.")
             st.session_state["last"] = res
+        except H.Busy as e:
+            st.warning(str(e))
         except H.GitHubError as e:
             st.error(f"홈페이지 저장 문제: {e}")
         except Exception as e:

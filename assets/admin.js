@@ -400,11 +400,15 @@
     };
     const before = JSON.parse(JSON.stringify(state.listings));
     let removed = [];
+    // 직접 고친 사진·설명은 '직접' 표시 → 제주올 자동 연동이 덮어쓰지 않음
     if (editing) {
       removed = (editing.photos || []).filter((p) => !photos.includes(p));
+      if (JSON.stringify(editing.photos || []) !== JSON.stringify(photos)) data.photosFrom = photos.length ? "직접" : "";
+      if ((editing.desc || "") !== data.desc) data.descFrom = "직접";
       Object.assign(editing, data, { updatedAt: stamp() });
+      if (!editing.photosFrom) delete editing.photosFrom;
     } else {
-      state.listings.push({ id: newId(), ...data, createdAt: stamp() });
+      state.listings.push({ id: newId(), ...data, photosFrom: photos.length ? "직접" : undefined, descFrom: "직접", createdAt: stamp() });
     }
     $("#ed-save").disabled = true;
     const ok = await save(editing ? `매물 수정: ${data.title}` : `매물 등록: ${data.title}`, removed,
@@ -587,6 +591,7 @@
         }
         if (!skip) removed.push(...(l.photos || []).filter((p) => p.startsWith("images/")));
         l.photos = skip ? [...(l.photos || []), ...urls] : urls;
+        l.photosFrom = "직접";
         photoCount += urls.length;
         g.state = `${urls.length}장 준비됨`;
       }

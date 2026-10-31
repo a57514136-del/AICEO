@@ -615,13 +615,17 @@ def merge(data, fetched, now, hide_missing=True, repost_any=False):
             title = d.get("complex") or x["title"] or f"{x['dong']} {x['type']}".strip()
             l = {"id": f"NK{num}", "status": "광고중", "featured": False, "title": title, "photos": [], "desc": d.get("desc", ""),
                  "createdAt": now, **fields}
+            if d.get("desc"):
+                l["descFrom"] = "제주올"
             listings.append(l)
             stats["added"] += 1
         else:
             before = json.dumps(l, ensure_ascii=False, sort_keys=True)
             l.update(fields)
-            if not l.get("desc") and d.get("desc"):
+            # 상세설명: 매물관리에서 직접 고친 것(descFrom='직접')이 아니면 제주올 광고 내용과 똑같이
+            if d.get("desc") and l.get("descFrom") != "직접":
                 l["desc"] = d["desc"]
+                l["descFrom"] = "제주올"
             if l.get("status") == "숨김" and l.get("hiddenBy") == "sync":
                 l["status"] = "광고중"  # 제주올에 다시 올라온 매물
                 l.pop("hiddenBy", None)
